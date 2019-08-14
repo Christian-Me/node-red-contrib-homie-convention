@@ -1,0 +1,151 @@
+<script type="text/javascript">
+
+	function configEditPrepare(node, allowEmpty) {
+
+    	function updateDeviceItemSelection(cntrlConfig, itemName) {
+
+    		var itemSelectionEl = $('#node-input-deviceID');
+
+        itemSelectionEl.multiselect({
+            enableFiltering: true,
+            enableCaseInsensitiveFiltering: true,
+            maxHeight: 300,
+            disableIfEmpty: true,
+            nonSelectedText: 'Select device...',
+            disabledText: 'No items found...'
+        });
+        
+        if ( cntrlConfig ) {
+          var config = {
+            name: cntrlConfig.name,
+            broker: cntrlConfig.id
+          }
+          console.log("config = " + JSON.stringify(config));
+          $.getJSON("homieConvention/deviceList", config)
+            .done( function(data) {
+              console.log(data);
+              itemSelectionEl.children().remove();
+              var items = data;
+
+              items.sort(function(a,b) {
+                if ( a.name < b.name )
+                  return -1;
+                else if ( a.name > b.name )
+                  return 1;
+                else
+                  return 0;
+              });
+
+              if (allowEmpty)
+                itemSelectionEl.append('<option value="">[any]</option>');
+              items.forEach(function (item) {
+                itemSelectionEl.append('<option>' + item.name + '</option>');
+                var it = itemSelectionEl.find('option').last();
+                it.attr('value', item.name);
+              });
+              itemSelectionEl.val(itemName);
+              itemSelectionEl.multiselect('rebuild');
+            })
+            .fail(function(e1, e2, e3) {
+              console.log("error : " + JSON.stringify(e1));
+            });
+        }
+		}
+
+    updateDeviceItemSelection(RED.nodes.node(node.broker), node.deviceID);
+    //(this, node.deviceID);
+
+		$('#node-input-broker').change(function(ev) {
+	        updateDeviceItemSelection(RED.nodes.node($('#node-input-broker').val()), $('#node-input-deviceID').val() || node.deviceID);
+		});
+	}
+</script>
+
+<script type="text/javascript">
+  RED.nodes.registerType('homie-convention-device', {
+    category: 'Homie convention',
+    color: '#FFAAAA',
+    defaults: {
+      broker: {value: '', type: 'homie-convention-broker-config', required: true},
+      name: {value: ''},
+      deviceID: {value: ''}
+    },
+    inputs: 0,
+    outputs: 1,
+    icon: "homie.png",
+    label: function() {
+      return this.name||"Node-RED";
+    },
+    oneditprepare: function() {	
+      var brokerNodeId = $("#node-input-broker").val();
+
+      if (!brokerNodeId) {
+        	// No config node has been specified, so no use to connect to the server ...
+          return;
+      }
+
+      configEditPrepare(this, true); 
+    }
+  });
+</script>
+
+<script type="text/x-red" data-template-name="homie-convention-device">
+  <style type="text/css">
+    .btn-group {
+        width: 70%;
+    }
+    .multiselect {
+        width: 100%;
+    }
+    .form-row input.multiselect-search {
+        width: 100%;
+    }
+    .multiselect-clear-filter {
+        display: none;
+    }
+    .dropdown-menu {
+        width: 100% !important;
+    }
+    .multiselect-container input[type="checkbox"] {
+        display: none;
+    }
+    .multiselect-container > li > a > label.radio {
+        margin: 5px;
+        width: 90%;
+        height: 100%;
+        cursor: pointer;
+        font-weight: 400;
+        padding: 3px 20px 3px 20px;
+    }
+    .multiselect-container label.radio input[type="radio"] {
+        display: none;
+    }
+  </style>
+  <link rel="stylesheet" href="static/css/bootstrap-multiselect.css" type="text/css" />
+
+  <div class="form-row">
+    <label for="node-input-broker"><i class="fa fa-lightbulb-o"></i> Broker</label>
+    <input id="node-input-broker">
+  </div>
+  <div class="form-row">
+    <label for="node-input-deviceID"><i class="fa fa-crosshairs"></i> Device</label>
+    <select id="node-input-deviceID"></select>
+  </div>
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="homie-convention-device">
+  <p>Shim an Homie device.</p>
+
+  <p>
+    A message is emitted when any message for a specific homie device arrives
+  </p>
+  <ul>
+    <li><code>msg.device</code> : Name of Device</li>
+    <li><code>msg.property</code> : The property changed</li>
+    <li><code>msg.payload</code> : The value of the property</li>
+  </ul>
+</script>

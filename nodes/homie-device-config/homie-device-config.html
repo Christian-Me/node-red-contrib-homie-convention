@@ -1,0 +1,31 @@
+<script type="text/javascript">
+  RED.nodes.registerType('homie-convention-broker-config', {
+    category: 'config',
+    defaults: {
+      'mqtt-host': {value: '127.0.0.1', required: true},
+      'mqtt-port': {value: 1883, required: true},
+      name: {value: 'Node-RED', required: true},
+      homieDevices: []
+    },
+    label: function() {
+      return this['mqtt-host'] + ':' + this['mqtt-port'] + ' - ' + this.name;
+    }
+  });
+</script>
+
+<script type="text/x-red" data-template-name="homie-convention-broker-config">
+  <div class="form-row">
+    <label for="node-config-input-mqtt-host"><i class="fa fa-globe"></i> MQTT host</label>
+    <input type="text" id="node-config-input-mqtt-host">
+  </div>
+
+  <div class="form-row">
+    <label for="node-config-input-mqtt-port"><i class="fa fa-globe"></i> MQTT port</label>
+    <input type="number" min="1" max="65535" id="node-config-input-mqtt-port">
+  </div>
+
+  <div class="form-row">
+    <label for="node-config-input-name"><i class="fa fa-barcode"></i> Device name</label>
+    <input type="text" id="node-config-input-name" placeholder="Node-RED">
+  </div>
+</script>
