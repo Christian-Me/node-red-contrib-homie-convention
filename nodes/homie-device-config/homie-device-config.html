@@ -5,7 +5,11 @@
       'mqtt-host': {value: '127.0.0.1', required: true},
       'mqtt-port': {value: 1883, required: true},
       name: {value: 'Node-RED', required: true},
-      homieDevices: []
+      homieName: {value: 'Node-RED', required: true},
+      homieRoot: {value: 'homie', required: true},
+      storeGlobal: {value: false},
+      homieDevices: [],
+      homieData: {}
     },
     label: function() {
       return this['mqtt-host'] + ':' + this['mqtt-port'] + ' - ' + this.name;
@@ -25,7 +29,56 @@
   </div>
 
   <div class="form-row">
+      <label for="node-config-input-homieRoot"><i class="fa fa-label"></i> root Topic</label>
+      <input type="text" id="node-config-input-homieRoot" placeholder="homie">
+  </div>
+
+  <div class="form-row">
+    <label for="node-config-input-homieName"><i class="fa fa-label"></i> Homie name</label>
+    <input type="text" id="node-config-input-homieName" placeholder="Node-RED">
+  </div>
+
+  <div class="form-row">
     <label for="node-config-input-name"><i class="fa fa-barcode"></i> Device name</label>
     <input type="text" id="node-config-input-name" placeholder="Node-RED">
   </div>
+
+  <div class="form-row">
+    <label>&nbsp</label>
+    <input type="checkbox" id="node-config-input-storeGlobal" style="display: inline-block; width: auto; vertical-align: top;">
+    <label for="node-config-input-storeGlobal" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> store homie device tree in global context store</label>
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="homie-convention-broker-config">
+  <p> <img src="https://homieiot.github.io/img/mqtt_homie.jpg"></img>
+  </p>
+  <p>
+    Basic configuration to connect Node-RED to a MQTT broker and listen to incoming messages below the homie root topic.
+    currently only unencrypted and connection without user/password identification are supported
+  </p>
+  <p></p>
+
+	<b>Configuration</b>
+    <ul>
+        <li><b>Name</b> Optionally specify a internal name<for this configuration/li>
+        <li><b>MQTT hots</b> Host address of the mqtt broker</li>
+        <li><b>MQTT port</b> Port address of the mqtt broker</li>
+        <li><b>Homie root</b> Optionally enter different root toic to subscribe to. <code>homie</code> is specified as default. Only chnage it if you know what you are doing because this may break auto-dicover functionality.</li>
+        <li><b>Homie name</b> Give this Node-Red server a unique name to be adressed directly by other homie nodes.</li>
+   	</ul>
+	<p></p>
+
+  <h3>Details</h3>
+    <p>
+        The Homie convention defines a standardized way of how IoT devices and services announce themselves and their data on the MQTT broker.<br>
+        It is thereby a crucial aspect on top of the MQTT protocol for <i>automatic discovery, configuration</i> and <i>usage</i> of devices and services.<br>
+        Form more Information head over to <a href="https://homieiot.github.io/">https://homieiot.github.io/</a>
+    </p>  
+
+  <h3>References</h3>
+    <ul>
+        <li><a href="https://homieiot.github.io/">Homie Convetion</a> - full specification of the Homie Convetion</li>
+        <li><a href="https://github.com/Christian-Me/node-red-contrib-homie-convention">GitHub</a> - the nodes github repository</li>
+    </ul>
 </script>
