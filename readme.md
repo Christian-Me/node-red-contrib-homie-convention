@@ -1,4 +1,4 @@
-# contrib-homie-convention
+# node-red-contrib-homie-convention
 
 ![logo](./nodes/homie-device/icons/mqtt_homie.jpg)
 
