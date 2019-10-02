@@ -226,4 +226,4 @@ payload | object | Error message if an error accrued while receiving or converti
 - [ ] make use of the `$state` attribute
 - [ ] implement extensions
 - [ ] special node to make Node-RED a homie device announcing services
-- [ ] write the documentation *good* english as I*m nott a native speaker, sorry.
+- [ ] write the documentation in *good* english as I'm not a native speaker, sorry.

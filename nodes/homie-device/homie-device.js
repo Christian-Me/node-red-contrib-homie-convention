@@ -50,6 +50,7 @@ module.exports = function (RED) {
     this.uiSwitchColorPredictedOFF=config.uiSwitchColorPredictedOFF;
     this.uiSwitchIconPredictedON=config.uiSwitchIconPredictedON;
     this.uiSwitchIconPredictedOFF=config.uiSwitchIconPredictedOFF;
+    this.uiFormatColor=config.uiFormatColor;
 
     if ((typeof config.settable)=="string")  this.settable=(config.settable=="true");
      else this.settable=config.settable; // configure node as settable
@@ -105,6 +106,7 @@ module.exports = function (RED) {
     // ------------------------------------------
     
     this.addUiControl = function (msgOut) {
+      var errorMsg='';
       property=node.broker.homieData[msgOut.device][msgOut.node][msgOut.property];
       if (property===undefined) {
         msgOut.error={"status":"error"};
@@ -112,6 +114,13 @@ module.exports = function (RED) {
         return false;
       };
       switch(node.uiNode) {
+        case 'uiColor':
+            errorMsg= node.formatColor(property,msgOut.payload,msgOut);
+            if (errorMsg!='') {
+              msgOut.error={"status":"error"};
+              msgOut.error.errorText="Color formatting failed (" + errorMsg + ")";
+            }
+            break;
         case 'uiText':
             if (node.uiFormat) {
               if (property.$unit) {
@@ -175,10 +184,10 @@ module.exports = function (RED) {
                     switch(property.$datatype){
                       case 'enum':
                         var enumValues = property.$format.split(',');
-                        if (msgOut.payload==enumValues[0]) { // OFF state
+                        if ((typeof msgOut.payload=="boolean" && !msgOut.payload) || msgOut.payload==enumValues[0]) { // OFF state
                           if (msgOut.predicted && node.uiUseColorPredictedOff) msgOut.ui_control.bgcolor=node.uiColorPredictedOff;
                             else msgOut.ui_control.bgcolor=node.uiColorOFF;
-                        } else if (msgOut.payload==enumValues[1]) { // ON state
+                        } else if ((typeof msgOut.payload=="boolean" && msgOut.payload) || msgOut.payload==enumValues[1]) { // ON state
                           if (msgOut.predicted && node.uiUseColorPredicted) msgOut.ui_control.bgcolor=node.uiColorPredicted;
                             else msgOut.ui_control.bgcolor=node.uiColorON;
                         } else { // error
@@ -187,7 +196,7 @@ module.exports = function (RED) {
                           node.send([null,msgOut.error]);
                         }
                         break;
-                      case 'booleam':
+                      case 'boolean':
                         break;
                     }
                   }
@@ -319,6 +328,134 @@ module.exports = function (RED) {
       }
     });
 
+    // convert one color to another using uiFormatColor
+    // dose NOT convert color spaces (i.e. rgb -> hsv)
+    this.formatColor= function(property, payloadIn, msgOut) {
+      if (typeof payloadIn == "object") {
+        if (payloadIn.h!==undefined && payloadIn.s!==undefined && payloadIn.v!==undefined) {
+          if (property.$format=='hsv') {
+            msgOut.homiePayload=Math.floor(payloadIn.h)+","+(Math.floor(payloadIn.s*100))+","+(Math.floor(payloadIn.v*100));
+            switch (node.uiFormatColor) {
+              case 'homieString': // s and v range is 0-100
+                msgOut.payload=payloadIn.h+","+(Math.floor(payloadIn.s*100))+","+(Math.floor(payloadIn.v*100));
+                break;
+              case 'nodeRedObject':
+                msgOut.payload={};
+                msgOut.payload.h=payloadIn.h || 0;
+                msgOut.payload.s=payloadIn.s || 0;
+                msgOut.payload.v=payloadIn.v || 0;
+                msgOut.payload.a=payloadIn.a || 1;
+                break;
+              case 'nodeRedString':
+                msgOut.payload="hsv("+Math.floor(payloadIn.h)+","+(Math.floor(payloadIn.s*100))+","+(Math.floor(payloadIn.v*100))+")";
+                break;
+            }
+          } else { 
+            return "cannot convert hsv into "+property.$format;
+          }
+        } else if (payloadIn.r!==undefined && payloadIn.g!==undefined && payloadIn.b!==undefined) {
+          if (property.$format=='rgb') {
+            msgOut.homiePayload=Math.floor(payloadIn.r)+","+Math.floor(payloadIn.g)+","+Math.floor(payloadIn.b);
+            switch (node.uiFormatColor) {
+              case 'homieString':
+                msgOut.payload=payloadIn.r+","+payloadIn.g+","+payloadIn.b;
+                break;
+              case 'nodeRedObject':
+                msgOut.payload={};
+                msgOut.payload.r=payloadIn.r || 0;
+                msgOut.payload.g=payloadIn.g || 0;
+                msgOut.payload.b=payloadIn.b || 0;
+                msgOut.payload.a=payloadIn.a || 1;
+                break;
+              case 'nodeRedString':
+                msgOut.payload="rgb("+Math.floor(payloadIn.r)+","+Math.floor(payloadIn.g)+","+Math.floor(payloadIn.b)+")";
+                break;
+            }           
+          } else {
+            return "cannot convert rgb into "+property.$format;
+          }
+        } else {
+          return "cannot detect color format in msg.payload object";
+        }
+      } else if (typeof payloadIn == "string") {
+        var colors = payloadIn.split(',');
+        var lastParameter = colors.length-1;
+        var inColorFormat= property.$format;
+        
+        if (lastParameter>1) { // only accept color strings with min 3 parameters
+          if (colors[0].includes('(')) {
+            inColorFormat=colors[0].substring(0,colors[0].indexOf('('));
+            colors[0]=colors[0].substring(colors[0].indexOf('(')+1);
+          }
+          if (colors[lastParameter].includes(')')) colors[lastParameter]=colors[lastParameter].substring(0,colors[lastParameter].indexOf(')'));
+          if (inColorFormat==property.$format) {
+            switch (property.$format) {
+              case 'rgb': {
+                for (var i=0; i<3; i++) {
+                  if (Number(colors[i])<0) colors[i]=0;
+                  else if (Number(colors[i])>255) colors[i]=255;
+                  else colors[i]=Number(colors[i]);
+                }
+                msgOut.homiePayload=Math.floor(colors[0])+','+Math.floor(colors[1])+','+Math.floor(colors[2]);
+                switch (node.uiFormatColor) {
+                  case 'homieString':
+                    msgOut.payload=msgOut.homiePayload;
+                    break;
+                  case 'nodeRedObject':
+                    msgOut.payload={};
+                    msgOut.payload.r=Number(colors[0]) || 0;
+                    msgOut.payload.g=Number(colors[1]) || 0;
+                    msgOut.payload.b=Number(colors[2]) || 0;
+                    msgOut.payload.a=Number(colors[3]) || 1;
+                    break;
+                  case 'nodeRedString':
+                    msgOut.payload="rgb("+Math.floor(colors[0])+','+Math.floor(colors[1])+','+Math.floor(colors[2])+")";
+                    break;
+                }           
+              }
+              case('hsv'):
+                if (Number(colors[0])<0) colors[0]=0;
+                else if (Number(colors[0])>360) colors[0]=360;
+                else colors[0]=Number(colors[0]);
+                for (var i=1; i<3; i++) {
+                  if (colors[i].includes('%')) colors[i]=colors[i].substring(0,colors[i].indexOf('%'));
+                  colors[i]=Number(colors[i]);
+                  if (Number(colors[i])<0) colors[i]=0;
+                  else if (Number(colors[i])>100) colors[i]=100;
+                }
+                msgOut.homiePayload=Math.floor(colors[0])+','+Math.floor(colors[1])+','+Math.floor(colors[2]);
+                switch (node.uiFormatColor) {
+                  case 'homieString':
+                    msgOut.payload=msgOut.homiePayload;
+                    break;
+                  case 'nodeRedObject':
+                    msgOut.payload={};
+                    msgOut.payload.h=Number(colors[0]) || 0;
+                    msgOut.payload.s=Number(colors[1])/100 || 0;
+                    msgOut.payload.v=Number(colors[2])/100 || 0;
+                    msgOut.payload.a=Number(colors[3]) || 1;
+                    break;
+                  case 'nodeRedString':
+                    msgOut.payload="hsv("+Math.floor(colors[0])+','+colors[1]+'%,'+colors[2]+"%)";
+                    break;
+                }           
+                break;
+              default:
+                msgError.error = "payload "+msg.payload+" could not sent as color because $format="+property.$format+" is not defined as rgb or hsv. Sending anyway.";
+                node.send([null,msgError]);        
+            }
+          } else {
+            return "cannot convert "+inColorFormat+" into "+property.$format;
+          }
+        } else {
+          return "can only convert color strings with min 3 parameters ("+payloadIn+")";
+        }
+      } else {
+        return "cannot covert color of type "+typeof payloadIn;
+      }
+      return "";
+    }
+
     this.on('input', function(msg) {
       var msgError = {status: "error"};
       msgError.function = "input"
@@ -366,7 +503,7 @@ module.exports = function (RED) {
                           }
                       }
                       break;
-                    case ('enum'): // $datatype='enum' $format needs to contain comma seperated list.
+                    case ('enum'): // $datatype='enum' $format needs to contain comma separated list.
                       if (property.$format===undefined) {
                         msgError.error = "enum property "+msgOut.topic+" has no $format attribute! No output";
                         node.send([null,msgError]);
@@ -407,62 +544,9 @@ module.exports = function (RED) {
                       msgOut.value=property.value;
                       break;
                     case ('color'):
-                      if (property.$format!==undefined) {
-                        if (typeof msg.payload == "object") {
-                          if (msg.payload.h && msg.payload.s && msg.payload.v) {
-                            if (property.$format=='hsv') {
-                              msgOut.payload=msg.payload.h+","+(Math.floor(msg.payload.s*100))+","+(Math.floor(msg.payload.v*100));
-                            } else {
-                              msgError.error = "payload is formated as hsv object but $format="+property.$format+". No output";
-                              node.send([null,msgError]);
-                              return;
-                            }
-                          }
-                          if (msg.payload.r && msg.payload.g && msg.payload.b) {
-                            if (property.$format=='rgb') {
-                              msgOut.payload=msg.payload.r+","+msg.payload.g+","+msg.payload.b;
-                            } else {
-                              msgError.error = "payload is formated as rgb object but $format="+property.$format+". No output";
-                              node.send([null,msgError]);
-                              return;
-                            }
-                          }
-                        } else {
-                          var colors = msg.payload.split(',');
-                          if (colors.length==3) {
-                            if (colors[0].includes('(')) colors[0]=colors[0].substring(colors[0].search('(')+1);
-                            if (colors[2].includes(')')) colors[0]=colors[0].substring(0,colors[0].search('('));
-                            switch (property.$format) {
-                              case('rgb'):
-                                for (var i=0; i<3; i++) {
-                                  if (Number(colors[i])<0) colors[i]=0;
-                                  else if (Number(colors[i])>255) colors[i]=255;
-                                  else colors[i]=Number(colors[i]);
-                                }
-                                break;
-                              case('hsv'):
-                                if (Number(colors[0])<0) colors[0]=0;
-                                else if (Number(colors[0])>360) colors[0]=360;
-                                else colors[i]=Number(colors[i]);
-                                for (var i=1; i<3; i++) {
-                                  if (Number(colors[i])<0) colors[i]=0;
-                                  else if (Number(colors[i])>100) colors[i]=100;
-                                  else colors[i]=Number(colors[i]);
-                                }
-                                break;
-                              default:
-                                msgError.error = "payload "+msg.payload+" could not sent as color because $format="+property.$format+" is not defined as rgb or hsv. Sending anyway.";
-                                node.send([null,msgError]);        
-                            }
-                            msgOut.payload=colors[0]+','+colors[1]+','+colors[2];
-                          } else {
-                            msgError.error = "Not proper formated payload "+msg.payload+". It has not 3 components r,g,b or h,s,v. No output";
-                            node.send([null,msgError]);
-                            return;                                   
-                          }
-                        }
-                      } else {
-                        msgError.error = "payload "+msg.payload+" could not converted to $datatype=color because $format not defined (colorspace unknown). No output";
+                      msgError.error=node.formatColor(property,msg.payload,msgOut);
+                      if (msgError.error!="") {
+                        msgError.error = "Could not convert color payload ("+ msgError.error+")";
                         node.send([null,msgError]);
                         return;
                       }
@@ -493,12 +577,18 @@ module.exports = function (RED) {
         }
 
         // save new value as predicted in homieData
-        property.value=msgOut.payload; // finally we shoud have a matching value to send.
+        property.value=msgOut.payload; // finally we should have a matching value to send.
         property.predicted=true; // mark value as predicted;
         msgOut.predicted=property.predicted;
 
-        node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.payload); // FIRST send unaltered data to mqtt broker!
-        node.addUiControl(msgOut); //add ui controll attributes to msgOut
+        // FIRST send unaltered data to mqtt broker!
+        if (msgOut.homiePayload) node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.homiePayload); // If a special homie payload exists send this one.
+        else  node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.payload);
+        return;
+        
+        // perhaps not necessary because message will be echoed by the broker.
+
+        node.addUiControl(msgOut); //add ui control attributes to msgOut
         node.send([msgOut,null]);
         return;
       }
@@ -558,11 +648,9 @@ module.exports = function (RED) {
 
     // fill output message with common values
     this.prepareMsgOut = function(msgOut) {
-      // console.log("prepareMsgOut:",msgOut);
       switch (node.addLabel) {
         case 'custom':  
           msgOut.label = node.labelName;
-          //msgOut.alabel = node.labelName;
           break;
         case 'device': msgOut.label = msgOut.device;
           break;
@@ -600,7 +688,7 @@ module.exports = function (RED) {
                           } else {
                             node.status({ fill: 'green', shape: 'dot', text: '#' + msgOut.timing.msgCounter + ' (' + Math.floor(msgOut.timing.interval/1000) + 's) '+ msgOut.topic + '=' + msgOut.payload});
                           }
-                          node.addUiControl(msgOut); // only add UI controlls if there was NO error
+                          node.addUiControl(msgOut); // only add UI controls if there was NO error
                           break;
             }
 

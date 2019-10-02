@@ -337,8 +337,9 @@ module.exports = function (RED) {
                   } else {
                     property.value = {};
                     property.value.h = Number(colors[0]);
-                    property.value.s = Number(colors[1]);
-                    property.value.v = Number(colors[2]);
+                    property.value.s = Number(colors[1])/100;
+                    property.value.v = Number(colors[2])/100;
+                    property.value.a = 1;
                     result = true;
                   }
                   break;
@@ -401,6 +402,10 @@ module.exports = function (RED) {
       return msgOut;
     }
     
+    // ----------------------------------------------------------
+    // New Message via MQTT
+    // ----------------------------------------------------------
+
     this.messageArrived = function (topic, message) {
       var splitted = topic.split('/');
       var deviceName = splitted[1];
@@ -488,7 +493,7 @@ module.exports = function (RED) {
     });
 
     this.client.on('error', function () {
-      node.addToLog("error","MQTT clinet error");
+      node.addToLog("error","MQTT client error");
       node.setState('error');
     });
 

@@ -134,6 +134,17 @@
             </div>
           </div>
 
+          <div id="node-config-homie-uiOption-uiColorPicker" style="display:none">
+            <div class="form-row">
+              <label for="node-input-uiFormatColor"><i class="fa fa-sliders"></i> Color Format</label>
+              <select id="node-input-uiFormatColor">
+                <option value="homieString">Homie String</option>
+                <option value="nodeRedObject">Node-RED object</option>
+                <option value="nodeRedString">Node-RED string</option>>
+              </select>
+            </div>
+          </div>
+
           <div id="node-config-homie-uiOption-uiColorButton" style="display:none">
             <div class="form-row">
               <label><i class="fa fa-bold"></i> Label</label>
@@ -352,6 +363,9 @@
           case 'uiText':
             $("#node-config-homie-uiOption-uiFormat").show();
             break;
+          case 'uiColor':
+            $("#node-config-homie-uiOption-uiColorPicker").show();
+            break;
         }
       };
 
@@ -543,8 +557,8 @@
       labelName: {value: ''},
       uiPlaceName: {value: ''}, // placeholder Name;
       uiNode: {value: 'none'}, // type of UI Node
-      uiControlDropdown: {value: true}, // controll dropdown via ui_control
-      uiControlMinMax: {value: true}, // controll min max via ui_control
+      uiControlDropdown: {value: true}, // control dropdown via ui_control
+      uiControlMinMax: {value: true}, // control min max via ui_control
       uiColor1: {value: '#FFFFFF'}, // foreground colors
       uiBgColor1: {value: '#FFFFFF'}, // background colors
       uiColorON: {value: '#FFFFFF'},
@@ -563,6 +577,7 @@
       uiSwitchColorPredictedOFF: {value: '#AAAAAA'},
       uiSwitchIconPredictedON: {value: 'fa-toggle-on'},
       uiSwitchIconPredictedOFF: {value: 'fa-toggle-off'},
+      uiFormatColor: {value: 'homieString'},
       settable: {value: false}
     },
     inputs: 1,
