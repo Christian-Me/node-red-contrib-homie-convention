@@ -246,13 +246,19 @@ payload | object | Error message if an error accrued while receiving or converti
 - [ ] implement extensions
 - [ ] special node to make Node-RED a homie device announcing services
 - [ ] write the documentation in *good* english as I'm not a native speaker, sorry.
+- [ ] update documentation to new features
+- [ ] add some "real life" examples to documentation
 
 ## bugfixes & feature updates
 
 ### 0.0.2
 
-* multiselect dropdown lists seams not to work oi Node-RED V1.x.x > use standard dropdown now until a working version of searchable dropdown boxes is found
+* compatibility to Node-RED 1.0.x - not in detail but it works for now
+* "multiselect" dropdown lists seams not to work oi Node-RED V1.x.x > use standard dropdown now until a working version of searchable dropdown boxes is found
 * duplicates in some dropdown lists > **fixed**
 * moved console logs when new messages arrive to trace to keep the log "info" log clean.
 * some typos fixed.
-* bug fix: Mixed order of mqtt messages or "incorrect" topics cause runtime to crash [see issue #1](https://github.com/Christian-Me/node-red-contrib-homie-convention/issues/1) 
+* bug fix: Mixed order of mqtt messages or "incorrect" topics cause runtime to crash [see issue #1](https://github.com/Christian-Me/node-red-contrib-homie-convention/issues/1)
+* compatibility to Homie 3.0.x ($stats, $firmware and $implementation)
+* compatibility to Homie 4.0.0 extensions (not complete)
+* lot of bugfixes ...
