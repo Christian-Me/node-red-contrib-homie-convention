@@ -12,7 +12,11 @@ Details of the homie convention are available here [https://homieiot.github.io/]
 
 This node is tested with version **4.0.0** of the Homie convention but should work with version 3.0.x too. 
 
-**BETA version! Please raise an issue on [github](https://github.com/Christian-Me/node-red-contrib-homie-convention/issues) if you run into any problems. Every support counts. Thank you in advance.**
+**BETA version! Please raise an issue on [github](https://github.com/Christian-Me/node-red-contrib-homie-convention/issues) if you run into any problems. Every support counts.**
+
+**For questions, ideas and feature request please use the [Node-RED forum](https://discourse.nodered.org/t/announce-node-red-contrib-homie-convention/16329)**
+
+**Thank you in advance.**
 
 ## changelog
 
