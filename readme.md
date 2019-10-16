@@ -10,15 +10,20 @@
 
 Details of the homie convention are available here [https://homieiot.github.io/]
 
+This node is tested with version **4.0.0** of the Homie convention but should work with version 3.0.x too. 
+
+**BETA version! Please raise an issue on [github](https://github.com/Christian-Me/node-red-contrib-homie-convention/issues) if you run into any problems. Every support counts. Thank you in advance.**
+
 ## changelog
 
 * 0.0.1 Initial release
+* 0.0.2 Fixes to run on Node-RED 1.0.x & bug fixes (see end of this file)
 
 ## concept
 
 Announcements for `devices`/`nodes`/`properties` are stored on the mqtt broker as retained messages or sent "live". The homie-convention node collects the retained messages and makes it easy to select the property of interest. 
 Additional attributes can be translated to useful messages to configure dashboard nodes.
-The node sends messages received on the input to the configured property. It also tries to convert data types if possible
+The node sends messages received on the input to the configured property. It also tries to convert data types if possible.
 
 ## configuration
 
@@ -118,17 +123,24 @@ predicted ON | check if you want that the button have this color when set to ON 
 predicted OFF | check if you want that the button have this color when set to OFF until a new state on the input arrives
 Tooltip | Tooltip if user hoovers over the element. Needs reload of the dashboard to appear.
 
-## chart
+### chart
 The min and max values received by the homie `$format` attribute can be used to limit the Y-axis range. Use the msg.label feature to name the individual curves if you have selected wildcards in the basic configuration tab.
 ![dashboard button](./screenshots/dashboard-chart.png)
 
 parameter | description
 ----------|------------
 min max | use $format parameter to set ui_control.max and ui_control.min
-color picker
+
+### color picker
+parameter | description
+----------|------------
 format | use $format to set ui_control.format to rgb or hsv
-dropdown
+
+### dropdown
+parameter | description
+----------|------------
 format | use $format to fill option list
+
 ### gauge, numeric, slider
 ![dashboard gauge](./screenshots/dashboard-gauge.png)
 
@@ -176,11 +188,16 @@ msg.timing | Select to receive timing information.
 msg.error | Select to receive error information. All Errors will be sent on 2nd output
 msg.attributes | Select to receive attributes information.
 
-## Inputs
-payload number | string | buffer
-the payload of the message to send to the homie device.
-topic string
-the homie topic to publish to. This can override the node configuration. If empty the node settings will be used. If not matching a known property topic will be ignored.
+## inputs
+
+The payload on the imput will be sent to the mqtt broker. The topic is either specified by <code>msg.topic</code> or by the homie node configuration. Wildcards are possible for devices and nodes. If wildcards are used multiple messages will be set. The msg.topic should be formated as device/node/property. The rood topic homie and the /set postfix will be added.
+
+The input format of msg.payload is compatible to the supported dashboard nodes. The node tries to convert not homie compatible formats automatically. If the conversion fails a error message will be sent via the error output.  
+
+parameter | type | description
+----------|------|------------
+payload | number,string,buffer | the payload of the message to send to the homie device.
+topic | string | the homie topic to publish to. This can override the node configuration. If empty the node settings will be used. If not matching a known property topic will be ignored.
 
 ## outputs
 ### standard output
@@ -221,9 +238,21 @@ payload | object | Error message if an error accrued while receiving or converti
 
 ## to do / limitations
 
+- [X] make it 1.0 compatible ***it is now usable***
+- [ ] make it fully 1.0 compatible ***further tests requited***
 - [ ] Use the Build in MQTT client to make full use of the configurations (password / encryption) or add minimal security to the currently used client
 - [ ] detect offline nodes by checking the interval of received messages
 - [ ] make use of the `$state` attribute
 - [ ] implement extensions
 - [ ] special node to make Node-RED a homie device announcing services
 - [ ] write the documentation in *good* english as I'm not a native speaker, sorry.
+
+## bugfixes & feature updates
+
+### 0.0.2
+
+* multiselect dropdown lists seams not to work oi Node-RED V1.x.x > use standard dropdown now until a working version of searchable dropdown boxes is found
+* duplicates in some dropdown lists > **fixed**
+* moved console logs when new messages arrive to trace to keep the log "info" log clean.
+* some typos fixed.
+* bug fix: Mixed order of mqtt messages or "incorrect" topics cause runtime to crash [see issue #1](https://github.com/Christian-Me/node-red-contrib-homie-convention/issues/1) 

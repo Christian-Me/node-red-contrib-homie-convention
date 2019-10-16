@@ -2,7 +2,8 @@ module.exports = function (RED) {
   function homieDevice (config) {
     RED.nodes.createNode(this, config);
     var node = this;
-
+    this.startupSent = false; // flag if startup messages are sent
+    
     this.handleDeviceState = function (state) {
       switch (state) {
         case 'connected':
@@ -10,6 +11,7 @@ module.exports = function (RED) {
           break;
         case 'disconnected':
           node.status({ fill: 'red', shape: 'ring', text: 'MQTT disconnected' });
+          node.startupSent = false;
           break;
       }
     };
@@ -20,7 +22,7 @@ module.exports = function (RED) {
     this.nodeID=config.nodeID;
     this.propertyID=config.propertyID;
     this.infoError=config.infoError; // include Error messages
-    this.infoAttributes=config.infoAttributes; // influde Attribute information
+    this.infoAttributes=config.infoAttributes; // include Attribute information
     this.infoTiming=config.infoTiming; // include Timing messages
     this.addLabel=config.addLabel; // include msg.label 
     this.labelTopic=config.labelTopic; // msg.topic = msg.label
@@ -28,7 +30,7 @@ module.exports = function (RED) {
     this.uiPlaceName = config.uiPlaceName; // Placeholder Text for uiDropdown
     this.uiControlDropdown=config.uiControlDropdown; // convert $format to msg.options for uiDropdown
     this.uiNode=config.uiNode; // type of node connected to
-    this.uiControl=config.uiControl; // convert $format if aplictable;
+    this.uiControl=config.uiControl; // convert $format if applicable;
     this.uiControlMinMax=config.uiControlMinMax; // convert $format min:max to ui_control.min / max
     this.uiLabel=config.uiLabel; // label ui elements (if possible);
     this.uiColor1=config.uiColor1; // foreground color
@@ -56,9 +58,6 @@ module.exports = function (RED) {
      else this.settable=config.settable; // configure node as settable
     if (this.settable) this.inputs = 1;
       else this.inputs = 0;
-    // this.homieDevice=this.broker.homieData[this.deviceID] || {};
-    // this.homieNode=this.broker.homieData[this.deviceID][this.nodeID] || {};
-    // this.homieProperty=this.broker.homieData[this.deviceID][this.nodeID][this.propertyID] || {};
 
     this.handleDeviceState(this.broker.state);
 
@@ -102,15 +101,15 @@ module.exports = function (RED) {
     }
 
     // ------------------------------------------
-    // add ui controll attributes
+    // add ui control attributes
     // ------------------------------------------
     
     this.addUiControl = function (msgOut) {
       var errorMsg='';
-      property=node.broker.homieData[msgOut.device][msgOut.node][msgOut.property];
+      property=node.broker.homieData[msgOut.deviceId][msgOut.nodeId][msgOut.propertyId];
       if (property===undefined) {
         msgOut.error={"status":"error"};
-        msgOut.error.errorText="addUIConmtrol: property not found!";
+        msgOut.error.errorText="addUIControl: property not found!";
         return false;
       };
       switch(node.uiNode) {
@@ -128,7 +127,7 @@ module.exports = function (RED) {
                 msgOut.ui_control.format="{{msg.payload}} "+property.$unit;
               } else {
                 msgOut.error={"status":"warning"};
-                msgOut.error.errorText="addUIConmtrol:uiText Property " + property.$name + " has no $unit defined!";
+                msgOut.error.errorText="addUIControl:uiText Property " + property.$name + " has no $unit defined!";
               }
             }
             break;
@@ -139,7 +138,7 @@ module.exports = function (RED) {
                 msgOut.ui_control.format="{{msg.value}} "+property.$unit;
               } else {
                 msgOut.error={"status":"warning"};
-                msgOut.error.errorText="addUIConmtrol:uiSlider/uiNumeric Property " + property.$name + " has no $unit defined!";
+                msgOut.error.errorText="addUIControl:uiSlider/uiNumeric Property " + property.$name + " has no $unit defined!";
               }
             }
             // no break because uiNumeric can use min:max too
@@ -153,11 +152,11 @@ module.exports = function (RED) {
                       msgOut.ui_control.max=Number(formatValues[1]);
                     } else {
                       msgOut.error={"status":"warning"};
-                      msgOut.error.errorText="addUIConmtrol:uiSlider Property " + property.$name + " has no proper $format defined ("+property.$format+")";
+                      msgOut.error.errorText="addUIControl:uiSlider Property " + property.$name + " has no proper $format defined ("+property.$format+")";
                     }
                   } else {
                     msgOut.error={"status":"warning"};
-                    msgOut.error.errorText="addUIConmtrol:uiSlider Property " + property.$name + " has no $format defined!";
+                    msgOut.error.errorText="addUIControl:uiSlider Property " + property.$name + " has no $format defined!";
                   }
                 }
                 break;
@@ -238,7 +237,7 @@ module.exports = function (RED) {
     this.startupMessages = function (validatedDevice,validatedNode,validatedProperty) {
       
       var sendProperty = function (currentDevice,currentNode,currentProperty) {
-        if (node.uiNode=="none" && node.addLabel=="none") return false; // no startup messages nessesary
+        if (node.uiNode=="none" && node.addLabel=="none") return false; // no startup messages necessary
         var msgOut = {};
         var homieDevice= node.broker.homieData[currentDevice];
         if (!homieDevice) {
@@ -253,10 +252,19 @@ module.exports = function (RED) {
               node.addToLog("info","startupMessages:sendProperty:"+currentDevice+"/"+currentNode+"/"+currentProperty);
  
               // prepare startup message
-              msgOut={device: currentDevice, node: currentNode, property: currentProperty}
+              msgOut={"msgType":"startup",
+                      "deviceId": currentDevice, 
+                      "nodeId": currentNode,
+                      "propertyId": currentProperty,
+                      "deviceName": homieDevice.$name,
+                      "nodeName": homieNode.$name,
+                      "propertyName": homieProperty.$name};
+              if (!msgOut.deviceName ||
+                  !msgOut.nodeName ||
+                  !msgOut.propertyName) return;        
               node.prepareMsgOut(msgOut);
 
-              // add ui controlls
+              // add ui controls
               if (node.uiNode!="none") node.addUiControl(msgOut);
 
               if (homieProperty.payload) msgOut.payload = homieProperty.payload;
@@ -265,11 +273,14 @@ module.exports = function (RED) {
               // prepare Label
               if (node.addLabel=="name") msgOut.label= homieProperty.$name;
               if (node.labelPayload) msgOut.payload=msgOut.label;
+              if (node.labelTopic) msgOut.topic=msgOut.label;
               
+              node.sendLogs();
+
               // send startup message;
               if (msgOut.error) node.send([null,msgOut]);
               else node.send([msgOut,null]);
-              node.sendLogs();
+              node.startupSent= true;
             }
           }
         }
@@ -278,7 +289,6 @@ module.exports = function (RED) {
       var sendNode = function (currentDevice,currentNode,currentProperty) {
         var homieDevice= node.broker.homieData[currentDevice];
         if (homieDevice!==undefined) {
-          //console.log(" sendNode:", currentDevice, "/", currentNode, "/", currentProperty);
           var homieNode=homieDevice[currentNode];
           if (currentProperty=='[any]') { // check all properties if startup messages to be send
             for (var propertyName in homieNode) {
@@ -291,10 +301,9 @@ module.exports = function (RED) {
       var sendDevice = function (currentDevice,currentNode,currentProperty) {
         var homieDevice= node.broker.homieData[currentDevice];
         if (homieDevice!==undefined && homieDevice.itemList!==undefined) {
-          //console.log(" sendDevice:", currentDevice, "/", currentNode, "/", currentProperty);
-          if (currentNode=='[any]') { // check all nodes if they contain proerties with startup messages to be send
+          if (currentNode=='[any]') { // check all nodes if they contain properties with startup messages to be send
             for (var nodeName in homieDevice.itemList) {
-              sendNode(currentDevice,nodeName,currentProperty);
+              sendNode(currentDevice,homieDevice.itemList[nodeName].value,currentProperty);
             } // single Node
           } else sendNode(currentDevice,currentNode,currentProperty);
         }      
@@ -306,8 +315,11 @@ module.exports = function (RED) {
         if (validatedProperty) { // send for single property
           sendProperty(validatedDevice,validatedNode,validatedProperty);
         } else if (node.deviceID=='[any]') { // loop through devices
-          for (var deviceName in node.broker.homieData) { // check if any device matches the desired device name
-           if (validatedDevice==deviceName) sendDevice(node.deviceID,node.nodeID,node.propertyID);
+          for (var deviceName in node.broker.homieData) { // send to first match
+           if (validatedDevice==deviceName) {
+             sendDevice(deviceName,node.nodeID,node.propertyID);
+             break;
+           }
           }
         } else { // single Device
           if (validatedDevice==node.deviceID) sendDevice(node.deviceID,node.nodeID,node.propertyID);
@@ -316,15 +328,18 @@ module.exports = function (RED) {
       node.sendLogs();
     };
 
-    this.broker.on('validatedDevice', function (deviceName, nodeId, propertyId, msgOut) {
-      // node.startupMessages(node,deviceName); 
+    this.broker.on('validatedDevice', function (msgOut) {
+      if (node.startupSent) return;
+      node.startupMessages(msgOut.deviceId);
     });
 
-    this.broker.on('validatedProperty', function (deviceId, nodeId, propertyId, msgOut) {
-      if ((node.deviceID=="[any]" || node.deviceID==deviceId) &&
-          (node.nodeID=="[any]" || node.nodeID==nodeId) &&
-          (node.propertyID=="[any]" || propertyId==node.propertyID)) {
-        node.startupMessages(deviceId,nodeId,propertyId);
+    this.broker.on('validatedProperty', function (msgOut) {
+      if (node.startupSent) return;
+      if ((node.deviceID=="[any]" || msgOut.deviceId==node.deviceID) &&
+          (node.nodeID=="[any]" || msgOut.nodeId==node.nodeID) &&
+          (node.propertyID=="[any]" || msgOut.propertyId==node.propertyID)) {
+        node.startupMessages(msgOut.deviceId,msgOut.nodeId,msgOut.propertyId);
+        node.startupSent= true;
       }
     });
 
@@ -585,12 +600,7 @@ module.exports = function (RED) {
         if (msgOut.homiePayload) node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.homiePayload); // If a special homie payload exists send this one.
         else  node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.payload);
         return;
-        
-        // perhaps not necessary because message will be echoed by the broker.
 
-        node.addUiControl(msgOut); //add ui control attributes to msgOut
-        node.send([msgOut,null]);
-        return;
       }
 
       var sendByDevice = function (device) {
@@ -607,16 +617,19 @@ module.exports = function (RED) {
       }
       
       node.addToLog("debug","Message arrived! topic="+msg.topic+" payload="+msg.payload);
-      if (msg.topic!==undefined) { // topic specified = try to use this
+      if (msg.topic && msg.topic!=="") { // topic specified = try to use this
         var splitted = msg.topic.split('/');
         if (splitted.length!=3) {
-          msgError.error = "Expected deviceID/nodeID/propertyID as topic. Received: "+msg.topic+". No output"
+          msgError.error = "Expected deviceID/nodeID/propertyID as topic. Received: '"+msg.topic+"'."
           node.send([null,msgError]);
-          return;
+          msgOut.device = node.deviceID;
+          msgOut.node = node.nodeID;
+          msgOut.property = node.propertyID;
+        } else {
+          msgOut.device = splitted[0];
+          msgOut.node = splitted[1];
+          msgOut.property = splitted[2];
         }
-        msgOut.device = splitted[0];
-        msgOut.node = splitted[1];
-        msgOut.property = splitted[2];
       } else { // no topic specified = use node settings
         msgOut.device = node.deviceID;
         msgOut.node = node.nodeID;
@@ -648,36 +661,36 @@ module.exports = function (RED) {
 
     // fill output message with common values
     this.prepareMsgOut = function(msgOut) {
+      msgOut.label = msgOut.deviceName;
       switch (node.addLabel) {
         case 'custom':  
           msgOut.label = node.labelName;
           break;
-        case 'device': msgOut.label = msgOut.device;
+        case 'device': msgOut.label = msgOut.deviceName;
           break;
-        case 'node': msgOut.label = msgOut.node;
+        case 'node': msgOut.label = msgOut.nodeName;
           break;
-        case 'property':  msgOut.label = msgOut.property;
+        case 'property':  msgOut.label = msgOut.propertyName;
           break;
-        case 'device/node': msgOut.label = msgOut.device+"/"+msgOut.node;
+        case 'device/node': msgOut.label = msgOut.deviceName+"/"+msgOut.nodeName;
           break;
-        case 'device/node/property': msgOut.label = msgOut.device+"/"+msgOut.node+"/"+msgOut.property;
+        case 'device/node/property': msgOut.label = msgOut.deviceName+"/"+msgOut.nodeName+"/"+msgOut.propertyName;
           break;
       }
       if (node.labelTopic) msgOut.topic=msgOut.label;
-        else msgOut.topic = msgOut.device+"/"+msgOut.node+"/"+msgOut.property;
-      //  console.log("prepareMsgOut done:",msgOut);
+        else msgOut.topic = msgOut.deviceId+"/"+msgOut.nodeId+"/"+msgOut.propertyId;
     }
 
     // Format output Message
-    this.broker.on('message', function (deviceId, nodeId, propertyId, msgOut) {
+    this.broker.on('message', function (msgOut) {
       var log = "homie message arrived ("+node.deviceID+"/"+node.nodeID+"/"+node.propertyID+"):";
       if (msgOut===undefined) return;
-      if (node.deviceID=='[any]' || node.deviceID===deviceId) {
-        log += " " + node.deviceID + "=" + deviceId;
-        if (node.nodeID=='[any]' || node.nodeID===nodeId) {
-          log += " " + node.nodeID + "=" + nodeId;
-          if (node.propertyID=='[any]' || node.propertyID==propertyId) {
-            log += " " + node.propertyID + "=" + propertyId + " payload=" + msgOut.payload;
+      if (node.deviceID=='[any]' || node.deviceID===msgOut.deviceId) {
+        log += " " + node.deviceID + "=" + msgOut.deviceId;
+        if (node.nodeID=='[any]' || node.nodeID===msgOut.nodeId) {
+          log += " " + node.nodeID + "=" + msgOut.nodeId;
+          if (node.propertyID=='[any]' || node.propertyID==msgOut.propertyId) {
+            log += " " + node.propertyID + "=" + msgOut.propertyId + " payload=" + msgOut.payload;
             switch(msgOut.error.status) {
               case 'error': node.status({ fill: 'red', shape: 'dot', text: msgOut.error.errorText});
                             break;
@@ -694,12 +707,13 @@ module.exports = function (RED) {
 
             node.prepareMsgOut(msgOut);
 
+            if (!msgOut.topic) return;
             if (!node.infoTiming) delete msgOut.timing;
             if (!node.infoAttributes) delete msgOut.attributes;
             if (!node.infoError && msgOut.error.status=='ok') delete msgOut.error;
             if (msgOut.error===undefined || msgOut.error.status=='ok') node.send([msgOut,null]);
               else node.send([null,msgOut]); // send error Message only.
-            node.addToLog("info",log);
+            node.addToLog("trace",log);
           }
         }
       }
@@ -721,12 +735,13 @@ module.exports = function (RED) {
     var broker = RED.nodes.getNode(config.broker);
 
     var addItemToList = function (item) {
-      if (config.itemID!='treeList') { // ignore dublicates exept for tree list
-        for (var i=0; i<devices.length; i++) { // filter dublicate items.
-          if (devices[i].$name==item.name) return;
+      if (config.itemID!='treeList') { // ignore duplicates except for tree list
+        for (var i=0; i<devices.length; i++) { // filter duplicate items.
+          if (devices[i].name==item.name) return;
         }
       } else { // fill tree list
-        broker.validateHomie('property',device.$name,node.$name,item.name);
+//        var objectIds= broker.getAllIDs(device.deviceId,node.$name,item.name);
+        broker.validateHomie('property',device.deviceId,node.nodeId,property.propertyId,false);
         // config.addToLog("debug","addItemToList treeList Property : "+property.$name);
         item.class= 'palette-header';
         item.label="";
@@ -780,21 +795,52 @@ module.exports = function (RED) {
       }
       devices.push(item);
     }
+    var addExtensionItemToList = function (item) {
+      if (config.itemID!='treeList') { // ignore duplicates except for tree list
+        for (var i=0; i<devices.length; i++) { // filter duplicate items.
+          if (devices[i].name==item.name) return;
+        }
+      } else { // fill tree list
+        item.class= 'palette-header';
+        item.label=device.$name+"/"+item.name;
 
+        item.children=[];
+        item.children.push({label: "extension :"+ item.name.substr(0,item.name.indexOf('/')), icon: "fa fa-cogs"});
+        item.children.push({label: "property :"+ item.value, icon: "fa fa-info"});
+        item.children.push({label: "payload : "+ (node[item.value] || "n/a"), icon: "fa fa-envelope-open-o"});
+
+  	    item.icon="fa fa-bolt ";
+      }
+      devices.push(item);
+    }
+
+    var addExtensionPropertyToList = function (item) {
+      if (config.itemID!='treeList') { // ignore duplicates except for tree list
+        for (var i=0; i<devices.length; i++) { // filter duplicate items.
+          if (devices[i].name==item.name) return;
+        }
+        addExtensionItemToList(item);
+      } else { // for treeList filter selected property
+        if (config.propertyID=='[any]' || config.propertyID==item.value) { // [any] property or property name matches
+          addExtensionItemToList(item);
+        }
+      }
+    }
+    
     var addPropertyToList = function (item) {
-      property=node[item.name];
-      if (property.$settable===undefined) propertySettable = false;
+      property=node[item.value];
+      if (!property.$settable) propertySettable = false;
         else propertySettable=property.$settable;
       if (typeof config.settable=="string") config.settable=(config.settable==="true");
       // config.addToLog("debug","addPropertyToList : "+config.settable+"("+typeof config.settable+") : "+propertySettable+" : "+item.name);
-      if (config.itemID!='treeList') { // ignore dublicates exept for tree list
-        for (var i=0; i<devices.length; i++) { // filter dublicate items.
+      if (config.itemID!='treeList') { // ignore duplicates except for tree list
+        for (var i=0; i<devices.length; i++) { // filter duplicate items.
           if (devices[i].name==item.name) return;
         }
         if (config.settable==false) addItemToList(item); // $settable filter not set
           else if (propertySettable) addItemToList(item); // match properties with $settable flag set 
       } else { // for treeList filter selected property
-        if (config.propertyID=='[any]' || config.propertyID==item.name) { // [any] property or property name matches
+        if (config.propertyID=='[any]' || config.propertyID==item.value) { // [any] property or property name matches
           if (config.settable==false) addItemToList(item); // $settable filter not set
             else if (propertySettable) addItemToList(item); // match properties with $settable flag set 
         }
@@ -804,27 +850,29 @@ module.exports = function (RED) {
      var addNodeToList = function (item) {
 
       // config.addToLog("debug","addNodeToList : "+config.$settable+" : "+item.$settable+" : "+item.name);
-      node = device[item.name];
+      node = device[item.value];
       if (node!==undefined) node.itemList.forEach(addPropertyToList);
     }
 
     // config.addToLog("debug","/homieConvention/deviceList called for broker " + config.name + " query: "+ config.itemID+" Filter D:"+config.deviceID+" N:"+config.nodeID+" P:"+config.propertyID+" S:"+config.settable);
     var errorStr = "";
     switch (config.itemID) {
-      case 'deviceID':    devices = broker.homieDevices || [];
+      case 'deviceID':    devices = broker.homieDevices;
                           break;
       case 'nodeID':      if (config.deviceID!="[any]") { // nodes from a specific device
-                            if (broker.homieData[config.deviceID]!==undefined) {
-                              devices = broker.homieData[config.deviceID].itemList || [];
+                            if (broker.homieData[config.deviceID] && broker.homieData[config.deviceID].itemList) {
+                              devices=broker.homieData[config.deviceID].itemList
+                            } else {
+                              devices=[{"name":"NO Devices found!","value":"NO Devices found"}];
                             }
                           } else { // nodes from any Device
                               for (var deviceName in broker.homieData) {
                                 device=broker.homieData[deviceName];
-                                if (device.itemList!==undefined) {
+                                if (device.itemList) {
                                   device.itemList.forEach(addItemToList);
-                                }
+                                } 
                               }
-                          }
+                            }
                           break;
       case 'propertyID':
       case 'treeList': 
@@ -834,7 +882,8 @@ module.exports = function (RED) {
                             device = broker.homieData[config.deviceID];
                             node = broker.homieData[config.deviceID][config.nodeID];
                             if (device!==undefined && node!==undefined) {
-                              node.itemList.forEach(addPropertyToList);
+                              if (config.nodeID.substr(0,1)=='$') node.itemList.forEach(addExtensionPropertyToList)
+                              else node.itemList.forEach(addPropertyToList);
                             }
                           } else {
                             if (config.deviceID=="[any]") { // Include [any] device. loop through devices
@@ -866,8 +915,8 @@ module.exports = function (RED) {
                             }
                           }
                           break;
-
     }
+
     res.json(devices);
   });
 

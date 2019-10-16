@@ -1,48 +1,51 @@
 <script type="text/x-red" data-template-name="homie-convention-device">
+<!--
+
   <style type="text/css">
     .btn-group {
-        width: 70%;
+      width: 70%;
     }
     .multiselect {
-        width: 100%;
+      width: 100%;
     }
     .form-row input.multiselect-search {
-        width: 100%;
+      width: 100%;
     }
     .multiselect-clear-filter {
         display: none;
     }
     .dropdown-menu {
         width: 100% !important;
-    }
-    .multiselect-container input[type="checkbox"] {
+      }
+      .multiselect-container input[type="checkbox"] {
         display: none;
     }
     .multiselect-container > li > a > label.radio {
-        margin: 5px;
-        width: 90%;
-        height: 100%;
-        cursor: pointer;
+      margin: 5px;
+      width: 90%;
+      height: 100%;
+      cursor: pointer;
         font-weight: 400;
         padding: 3px 20px 3px 20px;
-    }
-    .multiselect-container label.radio input[type="radio"] {
+      }
+      .multiselect-container label.radio input[type="radio"] {
         display: none;
     }
   </style>
-
+  
   <link rel="stylesheet" href="static/css/bootstrap-multiselect.css" type="text/css" />
-
-  <div class="form-row">
+    
+  -->
+    <div class="form-row">
       <label for="node-input-name"><i class="icon-tag"></i> Name</label>
       <input type="text" id="node-input-name" placeholder="Name">
-  </div>
-  <div class="form-row">
+    </div>
+    <div class="form-row">
       <label for="node-input-broker"><i class="fa fa-exchange"></i> Broker</label>
       <input id="node-input-broker">
-  </div>
-  
-  <div class="form-row">
+    </div>
+    
+    <div class="form-row">
       <ul style="background: #fff; min-width: 600px; margin-bottom: 20px;" id="node-config-homie-tabs"></ul>
   </div>
   <div id="node-config-homie-tabs-content" style="min-height: 170px;">
@@ -285,7 +288,7 @@
 
   var treeList;
 
-  // remebner last selection to prevent unnessesary Updates
+  // remember last selection to prevent unnecessary Updates
   var lastDeviceID = '';
   var lastNodeID = '';
   var lastPropertyID = '';
@@ -385,7 +388,7 @@
 
         var itemSelectionEl = $('#node-input-'+ valueID);
         var treeData = [];
-
+/*
         itemSelectionEl.multiselect({
             enableFiltering: true,
             enableCaseInsensitiveFiltering: true,
@@ -394,7 +397,7 @@
             nonSelectedText: 'Select device...',
             disabledText: 'No items found...'
         });
-        
+*/        
         if ( cntrlConfig ) {
           var config = {
             name: cntrlConfig.name,
@@ -414,27 +417,27 @@
             .done( function(data) {
               console.log(config.itemID,data);
               var items = data;
-              if (config.itemID!="treeList") { // fill dropdown list exept for treeView updates
+              if (config.itemID!="treeList") { // fill dropdown list except for treeView updates
                 itemSelectionEl.children().remove();
 
                 items.sort(function(a,b) {
-                  if ( a.name < b.name )
+                  if ( a.name.toLowerCase() < b.name.toLowerCase() )
                     return -1;
-                  else if ( a.name > b.name )
+                  else if ( a.name.toLowerCase() > b.name.toLowerCase() )
                     return 1;
                   else
                     return 0;
                 });
 
-                if (allowEmpty && !(config.settable && valueID=='propertyID')) // only add [any] wildcard if settable filter is not selcted and property list is updating
+                if (allowEmpty && !(config.settable && valueID=='propertyID')) // only add [any] wildcard if settable filter is not selected and property list is updating
                   itemSelectionEl.append('<option value="[any]">[any]</option>');
                 items.forEach(function (item) {
-                  itemSelectionEl.append('<option>' + item.name + '</option>');
-                  var it = itemSelectionEl.find('option').last();
-                  it.attr('value', item.name);
+                  itemSelectionEl.append('<option value="'+item.value+'">' + item.name + '</option>');
+//                  var it = itemSelectionEl.find('option').last();
+//                  it.attr('value', item.value);
                 });
                 itemSelectionEl.val(itemName);
-                itemSelectionEl.multiselect('rebuild');
+//                itemSelectionEl.multiselect('rebuild');
               } else { // fill treeList with selected properties
                 treeList.treeList('data',items);
               }
@@ -663,16 +666,16 @@
       <li><b>Settable :</b> Properties list will only show settable properties.</li>
       <li><b>Device :</b> Optionally select the device to address. If specified, it filters messages messages from a specific device.</li>
       <li><b>Node :</b> Optionally select the node to address. If specified, it filters messages messages from a specific device.</li>
-      <li><b>Property :</b> Optionally select the property to address. If specified, the node only emmits updates from a specific property. Nessesary for settable properties.</li>
+      <li><b>Property :</b> Optionally select the property to address. If specified, the node only emmits updates from a specific property. Necessary for settable properties.</li>
     </ul>
 
   <h3>dashboard configuration</h3>
     <p>
-        The homie node can do the configuration of dashboard nodes according to the informations provided by the information provided through the auto-discover functionality.
-        refere to the full documentation for details.
+        The homie node can do the configuration of dashboard nodes according to the information provided by the auto-discover functionality.
+        refer to the full documentation for details.
     </p>
     <ul>
-        <li><b>ui node :</b> select the type of node you like to connect to the output. Individual options will appear. Most of the options are set by using the ui_conftol object.</li>
+        <li><b>ui node :</b> select the type of node you like to connect to the output. Individual options will appear. Most of the options are set by using the ui_control object.</li>
         <li>button</li>
         <ul>
           <li><b>Label :</b> Color of the label text</li>
@@ -685,17 +688,17 @@
             <li><b>Background :</b> Background color of the button</li>
             <li><b>ON :</b> color for true/on state</li>
             <li><b>OFF :</b> color for false/off state</li>
-            <li><b>predicted ON :</b> check if you whant that the button have this color when set to ON until a new state on the imput arrives</li>
-            <li><b>predicted OFF :</b> check if you whant that the button have this color when set to OFF until a new state on the imput arrives</li>
+            <li><b>predicted ON :</b> check if you want that the button have this color when set to ON until a new state on the input arrives</li>
+            <li><b>predicted OFF :</b> check if you want that the button have this color when set to OFF until a new state on the input arrives</li>
             <li><b>Tooltip :</b> Tooltip if user hoovers over the element. Needs reload of the dashboard to appear.</li>
         </ul>
         <li>chart</li>
         <ul>
-            <li><b>min max :</b> use $format paramter to set ui_control.max and ui_controll.min</li>
+            <li><b>min max :</b> use $format paramter to set ui_control.max and ui_control.min</li>
         </ul>
         <li>color picker</li>
         <ul>
-            <li><b>format :</b> use $format to set ui_controll.format to rgb or hsv</li>
+            <li><b>format :</b> use $format to set ui_control.format to rgb or hsv</li>
         </ul>
         <li>dropdown</li>
         <ul>
@@ -703,7 +706,7 @@
         </ul>
         <li>gauge, numeric, slider</li>
         <ul>
-            <li><b>min max :</b> use $format paramter to set ui_control.max and ui_controll.min</li>
+            <li><b>min max :</b> use $format paramter to set ui_control.max and ui_control.min</li>
         </ul>
         <li>switch</li>
         <ul>
@@ -720,9 +723,9 @@
         <ul>
           <li><b>format :</b> use $unit for <code>{{value}} $unit</code> if available</li>
         </ul>
-        <li>text imput</li>
+        <li>text input</li>
         <ul>
-          <li>no ui_contol parameters usefull</li>
+          <li>no ui_control parameters useful</li>
         </ul>
 
         <li><b>msg.label :</b> Select add label (i.e. for chart ui node) $name attribute will be used.</li>
@@ -746,7 +749,7 @@
         </dt>
         <dd> the payload of the message to send to the homie device. </dd>
         <dt class="optional">topic <span class="property-type">string</span></dt>
-        <dd> the homie topic to publish to. This can override the node configuration. If empty the node settings will be used. If not matching a known propery topic will be ignored.</dd>
+        <dd> the homie topic to publish to. This can override the node configuration. If empty the node settings will be used. If not matching a known property topic will be ignored.</dd>
     </dl>
 
  <h3>Outputs</h3>
@@ -766,7 +769,7 @@
                  <dd>Name of the node the message came from</dd>
 
                  <dt>msg.property <span class="property-type">string</span></dt>
-                 <dd>Name of the property emotting this message</dd>
+                 <dd>Name of the property emitting this message</dd>
 
                  <dt>msg.attributes.datatype <span class="property-type">string</span></dt>
                  <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$datatype</a> attribute.</dd>
@@ -778,7 +781,7 @@
                  <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$unit</a> attribute.</dd>
 
                  <dt>msg.label <span class="property-type">string</span></dt>
-                 <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$name</a> attribute. Usefull for chart UI node.</dd>
+                 <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$name</a> attribute. Useful for chart UI node.</dd>
 
              </dl>
          </li>
@@ -799,7 +802,7 @@
 
   <h3>References</h3>
     <ul>
-        <li><a href="https://homieiot.github.io/">Homie Convetion</a> - full specification of the Homie Convetion</li>
+        <li><a href="https://homieiot.github.io/">Homie Convention</a> - full specification of the Homie Convention</li>
         <li><a href="https://github.com/Christian-Me/node-red-contrib-homie-convention">GitHub</a> - the nodes github repository</li>
     </ul>
 </script>
