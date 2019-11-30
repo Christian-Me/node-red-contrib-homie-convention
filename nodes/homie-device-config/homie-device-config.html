@@ -4,6 +4,9 @@
     defaults: {
       'mqtt-host': {value: '127.0.0.1', required: true},
       'mqtt-port': {value: 1883, required: true},
+      tls: {type:"tls-config",required: false},
+      usetls: {value: false},
+      verifyservercert: { value: false},
       name: {value: 'Node-RED', required: true},
       homieName: {value: 'Node-RED', required: true},
       homieRoot: {value: 'homie', required: true},
@@ -13,6 +16,33 @@
     },
     label: function() {
       return this['mqtt-host'] + ':' + this['mqtt-port'] + ' - ' + this.name;
+    },
+    oneditprepare: function () {
+      if (typeof this.usetls === 'undefined') {
+        this.usetls = false;
+        $("#node-config-input-usetls").prop("checked",false);
+      }
+      function updateTLSOptions() {
+        if ($("#node-config-input-usetls").is(':checked')) {
+            $("#node-config-row-tls").show();
+        } else {
+            $("#node-config-row-tls").hide();
+        }
+      }
+      updateTLSOptions();
+      $("#node-config-input-usetls").on("click",function() {
+          updateTLSOptions();
+      });
+    },
+    oneditsave: function() {
+      if (!$("#node-config-input-usetls").is(':checked')) {
+          $("#node-config-input-tls").val("");
+      }
+    }
+  },
+  {credentials: {
+      username: {type:"text"},
+      password: {type:"password"}
     }
   });
 </script>
@@ -26,6 +56,24 @@
   <div class="form-row">
     <label for="node-config-input-mqtt-port"><i class="fa fa-globe"></i> MQTT port</label>
     <input type="number" min="1" max="65535" id="node-config-input-mqtt-port">
+  </div>
+
+  <div class="form-row">
+    <label for="node-config-input-username"><i class="fa fa-user"></i> Username</label>
+    <input type="text" id="node-config-input-username">
+  </div>
+
+  <div class="form-row">
+    <label for="node-config-input-password"><i class="fa fa-lock"></i> Password</label>
+    <input type="password" id="node-config-input-password">
+  </div>
+
+  <div class="form-row">
+    <input type="checkbox" id="node-config-input-usetls" style="display: inline-block; width: auto; vertical-align: top;">
+    <label for="node-config-input-usetls" style="width: auto"><i class="fa fa-key"></i> Enable secure (SSL/TLS) connection</label>
+    <div id="node-config-row-tls" class="hide">
+        <label style="width: auto; margin-left: 20px; margin-right: 10px;" for="node-config-input-tls">TLS Configuration</label><input style="width: 300px;" type="text" id="node-config-input-tls">
+    </div>
   </div>
 
   <div class="form-row">

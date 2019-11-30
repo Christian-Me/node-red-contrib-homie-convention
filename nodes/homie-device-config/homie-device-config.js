@@ -5,63 +5,87 @@ module.exports = function (RED) {
   function homieDeviceConfig (config) {
     RED.nodes.createNode(this, config);
     var node = this;
-
-    this.state = 'disconnected';
-    this.setState = function (state) {
-      node.state = state;
-      node.emit('state', state);
-    };
-
-    this.mqttHost = config['mqtt-host'];
-    this.mqttPort = config['mqtt-port'];
-    this.mqttQOS = config.mqttQOS || 2;
-    this.mqttRetain = config.mqttRetain || true;
-    this.deviceId = config['device-id'];
-    this.name = config.name;
-    this.homieName = config.homieName || "Node-RED"; // name to be identified by homie devices
-    this.homieRoot = config.homieRoot || "homie"; // root topic for homie devices
-    this.homieDevices = [];
-    this.baseTopic = this.homieRoot + '/' + this.homieName;
-    this.storeGlobal = config.storeGlobal;
-
+    
     // ------------------------------------------
     // Handle console Logs
     // ------------------------------------------
-
+    
     // collect a log entry
     this.addToLog = function(type,text,collect) {
       if (!node.log[type] && !collect) { // send at once
         node.log[type]=text;
         return node.sendLog(type);
-      }
+      }  
       if (node.log[type] && !collect) { // send old log first
         node.sendLog(type);
         node.log[type]="";
-      }
+      }  
       if (!node.log[type]) node.log[type]="";
       node.log[type]+=text; // collect log
-    }
-
+    }  
+    
     // send out log entry defined by type
     this.sendLog = function(type) {
       if (!node.log) return false;
       if (node.log[type]) {
         RED.log[type]("contrib-homie-convention homie.device.config: "+node.log[type]);
         delete node.log[type];
-      } else return false;
+      } else return false;  
       return true;
-    }
-
+    }  
+    
     // send out all log entries
     this.sendLogs = function() {
       for (var logType in node.log) {
         node.sendLog(logType);
-      }
-    }
+      }  
+    }  
+    
+    this.state = 'disconnected';
+    this.setState = function (state) {
+      node.state = state;
+      node.emit('state', state);
+    };  
+    this.deviceId = config['device-id'];
+    this.name = config.name;
+    
+    this.options={};
+    this.options.usetls = config.usetls || false; // use tls encryption
+    this.options.host = config["mqtt-host"];
+    this.options.port = (config["mqtt-port"]) ? config["mqtt-port"] : ((this.usetls) ? "1883" : "8883");
+    if (this.options.usetls && config.tls) {
+      this.tlsNode = RED.nodes.getNode(config.tls);
+      if (this.tlsNode) {
+        this.tlsNode.addTLSOptions(this.options);
+      }    
+    }  
+    this.options.username= this.credentials.username,
+    this.options.password= this.credentials.password,
+    this.options.clientId= this.deviceId, 
+    this.options.will= {
+      topic: this.baseTopic + '/$state', 
+      payload: 'away', 
+      qos: 2, 
+      retain: true
+    }  
+    this.options.clean = true;
+    this.options.usews = config.usews || false; // use web services
+    this.options.verifyservercert = config.verifyservercert || false;
+    this.brokerurl= (this.options.usetls) ? "mqtts://" : "mqtt://";
+    this.brokerurl+= (this.options.host) ? this.options.host : "localhost";
+    this.brokerurl+= ":";
+    this.brokerurl+= (this.options.port) ? this.options.port : ((this.options.usetls) ? "1883" : "8883");
 
-    this.client = mqtt.connect({ host: this.mqttHost, port: this.mqttPort, clientId: this.deviceId, will: {
-      topic: this.baseTopic + '/$state', payload: 'away', qos: 2, retain: true
-    }});
+    this.mqttQOS = config.mqttQOS || 2;
+    this.mqttRetain = config.mqttRetain || true;
+    this.homieName = config.homieName || "Node-RED"; // name to be identified by homie devices
+    this.homieRoot = config.homieRoot || "homie"; // root topic for homie devices
+    this.homieDevices = [];
+    this.baseTopic = this.homieRoot + '/' + this.homieName;
+    this.storeGlobal = config.storeGlobal;
+    
+    node.addToLog("info","MQTT connect to "+this.brokerurl+" as user "+(this.credentials.username) ? this.credentials.username : "anonymous");
+    this.client = mqtt.connect(this.brokerurl, this.options);
 
     this.sendProperty = function (nodeId, name, value) {
       node.client.publish(node.baseTopic + '/' + nodeId + '/' + name, value, { qos: 2, retain: true });
@@ -74,7 +98,7 @@ module.exports = function (RED) {
     };
 
     this.client.on('connect', function () {
-      node.addToLog("debug","MQTT connect");
+      node.addToLog("info","MQTT connected to "+ node.brokerurl);
 
       node.setState('connected');
 
@@ -434,7 +458,7 @@ module.exports = function (RED) {
           if (result) {
  //           node.emit('validatedProperty', {"deviceId":deviceName, "nodeId":nodeName, "propertyId":propertyName});
           } else {
-            node.addToLog("trace","Validation of Property:"+deviceName+"/"+nodeName+"/"+propertyName+" failed! ("+node.homieData[deviceName][nodeName][propertyName].validationError+")");
+            node.addToLog("trace","Validation of Property:"+deviceName+"/"+nodeName+"/"+propertyName+" failed! ("+(node.homieData[deviceName][nodeName][propertyName]) ? node.homieData[deviceName][nodeName][propertyName].validationError : "undefined"+")");
            }
           return result;
       }
@@ -665,7 +689,7 @@ module.exports = function (RED) {
               if (node.storeMessage(homieProperty, message)) {
                 homieProperty.propertyId=propertyId;
                 homieProperty.predicted = false;
-              } else { // an error accured
+              } else { // an error accrued
                 property.error += ' ' + deviceName + '/' + nodeId + '/' + propertyId;
                 if (property.state=='ok') property.state = 'error';
               }
@@ -704,16 +728,17 @@ module.exports = function (RED) {
     this.client.on('message', this.messageArrived);
 
     this.client.on('close', function () {
+      node.addToLog("debug","MQTT closed ("+node.brokerurl+")");
       node.setState('close');
     });
 
     this.client.on('offline', function () {
-      node.addToLog("debug","MQTT offline");
+      node.addToLog("debug","MQTT offline ("+node.brokerurl+")");
       node.setState('offline');
     });
 
     this.client.on('error', function () {
-      node.addToLog("error","MQTT client error");
+      node.addToLog("error","MQTT client error ("+node.brokerurl+")");
       node.setState('error');
     });
 
@@ -728,5 +753,11 @@ module.exports = function (RED) {
     });
   }
 
-  RED.nodes.registerType('homie-convention-broker-config', homieDeviceConfig);
+  RED.nodes.registerType('homie-convention-broker-config', homieDeviceConfig,
+    {
+      credentials: {
+          username: {type:"text"},
+          password: {type:"password"}
+      }
+    });
 };

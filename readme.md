@@ -22,6 +22,7 @@ This node is tested with version **4.0.0** of the Homie convention but should wo
 
 * 0.0.1 Initial release
 * 0.0.2 Fixes to run on Node-RED 1.0.x & bug fixes (see end of this file)
+* 0.0.3 added basic authentication and ssl/tls encryption. Beta testers welcome.
 
 ## concept
 
@@ -244,16 +245,27 @@ payload | object | Error message if an error accrued while receiving or converti
 
 - [X] make it 1.0 compatible ***it is now usable***
 - [ ] make it fully 1.0 compatible ***further tests requited***
-- [ ] Use the Build in MQTT client to make full use of the configurations (password / encryption) or add minimal security to the currently used client
+- [X] ~~Use the Build in MQTT client~~ basic authentication  ( user /password) and SSL/TLS encryption ***BETA*** 
 - [ ] detect offline nodes by checking the interval of received messages
 - [ ] make use of the `$state` attribute
-- [ ] implement extensions
+- [X] implement extensions
 - [ ] special node to make Node-RED a homie device announcing services
 - [ ] write the documentation in *good* english as I'm not a native speaker, sorry.
 - [ ] update documentation to new features
 - [ ] add some "real life" examples to documentation
 
 ## bugfixes & feature updates
+
+### 0.0.3
+
+***First BETA release with encrypted communication enabled. Tested with mosquitto with self signed ca.crt only. Beta testers welcome.**
+
+Please check your configuration with the core mqtt node first.
+
+It uses the same mqtt module as the core mqtt node. The design is a little bit different. The tls config node can be used. If the core mqtt node works it should work here to.  
+
+* added basic username / password authentication
+* added SSL/TLS encryption
 
 ### 0.0.2
 
