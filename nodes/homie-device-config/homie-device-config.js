@@ -458,8 +458,13 @@ module.exports = function (RED) {
           if (result) {
  //           node.emit('validatedProperty', {"deviceId":deviceName, "nodeId":nodeName, "propertyId":propertyName});
           } else {
-            node.addToLog("trace","Validation of Property:"+deviceName+"/"+nodeName+"/"+propertyName+" failed! ("+(node.homieData[deviceName][nodeName][propertyName]) ? node.homieData[deviceName][nodeName][propertyName].validationError : "undefined"+")");
-           }
+            node.addToLog("trace","Validation of Property:"+deviceName+"/"+nodeName+"/"+propertyName+" failed! ("
+              +(node.homieData[deviceName][nodeName][propertyName]) ? 
+                ((node.homieData[deviceName][nodeName][propertyName]) ? 
+                  node.homieData[deviceName][nodeName][propertyName].validationError 
+                  : "undefined")
+                : "undefined"+")");
+          }
           return result;
       }
     }
@@ -658,7 +663,8 @@ module.exports = function (RED) {
           if (nodeId=='$nodes') { // list of valid nodes
             var nodes = messageString.split(',');
             for (var i=0; i<nodes.length; i++) {
-              node.homieData[deviceName].itemList.push({"name":nodes[i],"value":nodes[i]}); // don't have $name yet. Will fix during validation
+              // node.homieData[deviceName].itemList.push({"name":nodes[i],"value":nodes[i]}); // don't have $name yet. Will fix during validation
+              node.pushToItemList(node.homieData[deviceName].itemList,nodes[i],nodes[i]);
             }
             node.addToLog("info","Homie Device: "+ deviceName +" has "+i+" nodes: "+ messageString);
 //            node.validateHomie('device', deviceName, '', '', true); // validate homie Device when $nodes topic arrives
@@ -669,7 +675,8 @@ module.exports = function (RED) {
           if (propertyId=='$properties') { // list of valid nodes
             var nodes = messageString.split(',');
             for (var i=0; i<nodes.length; i++) {
-              node.homieData[deviceName][nodeId].itemList.push({"name":nodes[i],"value":nodes[i]}); // don't have $name yet. Will fix during validation
+//              node.homieData[deviceName][nodeId].itemList.push({"name":nodes[i],"value":nodes[i]}); // don't have $name yet. Will fix during validation
+              node.pushToItemList(node.homieData[deviceName][nodeId].itemList,nodes[i],nodes[i]);
             }
 //            node.validateHomie('node', deviceName, nodeId, '', true); // validate homie Node when $properties topic arrives
           } else if (propertyId.substr(0,1)!='$') { // value arrived

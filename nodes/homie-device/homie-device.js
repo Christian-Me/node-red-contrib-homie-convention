@@ -847,11 +847,14 @@ module.exports = function (RED) {
       }
     }
     
-     var addNodeToList = function (item) {
+    var addNodeToList = function (item) {
 
       // config.addToLog("debug","addNodeToList : "+config.$settable+" : "+item.$settable+" : "+item.name);
       node = device[item.value];
-      if (node!==undefined) node.itemList.forEach(addPropertyToList);
+      if (node!==undefined) {
+        if (node.nodeId && node.nodeId.substr(0,1)=='$') node.itemList.forEach(addExtensionPropertyToList)
+        else node.itemList.forEach(addPropertyToList);
+      }
     }
 
     // config.addToLog("debug","/homieConvention/deviceList called for broker " + config.name + " query: "+ config.itemID+" Filter D:"+config.deviceID+" N:"+config.nodeID+" P:"+config.propertyID+" S:"+config.settable);
@@ -865,7 +868,7 @@ module.exports = function (RED) {
                             } else {
                               devices=[{"name":"NO Devices found!","value":"NO Devices found"}];
                             }
-                          } else { // nodes from any Device
+                          } else { // nodes from [any] Device
                               for (var deviceName in broker.homieData) {
                                 device=broker.homieData[deviceName];
                                 if (device.itemList) {

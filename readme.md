@@ -246,6 +246,7 @@ payload | object | Error message if an error accrued while receiving or converti
 - [X] make it 1.0 compatible ***it is now usable***
 - [ ] make it fully 1.0 compatible ***further tests requited***
 - [X] ~~Use the Build in MQTT client~~ basic authentication  ( user /password) and SSL/TLS encryption ***BETA*** 
+- [ ] able to use websockets for mqtt.
 - [ ] detect offline nodes by checking the interval of received messages
 - [ ] make use of the `$state` attribute
 - [X] implement extensions
@@ -255,6 +256,10 @@ payload | object | Error message if an error accrued while receiving or converti
 - [ ] add some "real life" examples to documentation
 
 ## bugfixes & feature updates
+
+### 0.0.4
+
+* bug fix: undefined extension items in property list
 
 ### 0.0.3
 
