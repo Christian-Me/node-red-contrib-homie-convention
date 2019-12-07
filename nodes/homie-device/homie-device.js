@@ -87,7 +87,7 @@ module.exports = function (RED) {
     this.sendLog = function(type) {
       if (!node.log) return false;
       if (node.log[type]) {
-        RED.log[type]("contrib-homie-convention homie.device: "+node.log[type]);
+        RED.log[type]("[homie.device:"+node.name+"] "+node.log[type]);
         delete node.log[type];
       } else return false;
       return true;

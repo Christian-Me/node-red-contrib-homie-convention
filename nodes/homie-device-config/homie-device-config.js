@@ -28,7 +28,7 @@ module.exports = function (RED) {
     this.sendLog = function(type) {
       if (!node.log) return false;
       if (node.log[type]) {
-        RED.log[type]("contrib-homie-convention homie.device.config: "+node.log[type]);
+        RED.log[type]("[homie.device.config:"+node.name+"] "+node.log[type]);
         delete node.log[type];
       } else return false;  
       return true;
@@ -48,7 +48,11 @@ module.exports = function (RED) {
     };  
     this.deviceId = config['device-id'];
     this.name = config.name;
-    
+    if (this.credentials) {
+      this.username = this.credentials.username;
+      this.password = this.credentials.password;
+    }
+
     this.options={};
     this.options.usetls = config.usetls || false; // use tls encryption
     this.options.host = config["mqtt-host"];
@@ -59,8 +63,8 @@ module.exports = function (RED) {
         this.tlsNode.addTLSOptions(this.options);
       }    
     }  
-    this.options.username= this.credentials.username,
-    this.options.password= this.credentials.password,
+    this.options.username= this.username,
+    this.options.password= this.password,
     this.options.clientId= this.deviceId, 
     this.options.will= {
       topic: this.baseTopic + '/$state', 
@@ -84,7 +88,7 @@ module.exports = function (RED) {
     this.baseTopic = this.homieRoot + '/' + this.homieName;
     this.storeGlobal = config.storeGlobal;
     
-    node.addToLog("info","MQTT connect to "+this.brokerurl+" as user "+(this.credentials.username) ? this.credentials.username : "anonymous");
+    node.addToLog("info","MQTT connect to "+this.brokerurl+" as user "+ this.options.username);
     this.client = mqtt.connect(this.brokerurl, this.options);
 
     this.sendProperty = function (nodeId, name, value) {
@@ -98,7 +102,7 @@ module.exports = function (RED) {
     };
 
     this.client.on('connect', function () {
-      node.addToLog("info","MQTT connected to "+ node.brokerurl);
+      node.addToLog("info","MQTT connected to "+ node.brokerurl+ " as user "+ (node.options.username) ? (node.options.username) : "anonymous");
 
       node.setState('connected');
 

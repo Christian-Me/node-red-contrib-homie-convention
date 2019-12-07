@@ -14,6 +14,10 @@
       homieDevices: [],
       homieData: {}
     },
+    credentials: {
+      username: {type:"text"},
+      password: {type:"password"}
+    },
     label: function() {
       return this['mqtt-host'] + ':' + this['mqtt-port'] + ' - ' + this.name;
     },
@@ -38,11 +42,6 @@
       if (!$("#node-config-input-usetls").is(':checked')) {
           $("#node-config-input-tls").val("");
       }
-    }
-  },
-  {credentials: {
-      username: {type:"text"},
-      password: {type:"password"}
     }
   });
 </script>

@@ -46,10 +46,10 @@
     </div>
     
     <div class="form-row">
-      <ul style="background: #fff; min-width: 600px; margin-bottom: 20px;" id="node-config-homie-tabs"></ul>
-  </div>
-  <div id="node-config-homie-tabs-content" style="min-height: 170px;">
+      <ul style="min-width: 600px; margin-bottom: 20px;" id="node-config-homie-tabs"></ul>
+    </div>
 
+    <div id="node-config-homie-tabs-content" style="min-height: 170px;">
       <div id="homie-tab-basic" style="display:none">
         <div class="form-row">
             <label><i class="fa fa-info-circle"></i> Settable</label>
@@ -614,7 +614,8 @@
                 label: this._("extra")
             });
 
-   
+      setTimeout(function() { tabs.resize(); },0);
+      
       treeList = $("<div>")
             .css({width: "100%", height: "100%"})
             .appendTo(".node-homie-data-row")

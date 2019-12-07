@@ -13,17 +13,21 @@ Details of the homie convention are available here [https://homieiot.github.io/]
 This node is tested with version **4.0.0** of the Homie convention but should work with version 3.0.x too. 
 
 **BETA version! Please raise an issue on [github](https://github.com/Christian-Me/node-red-contrib-homie-convention/issues) if you run into any problems. Every support counts.**
-
 **For questions, ideas and feature request please use the [Node-RED forum](https://discourse.nodered.org/t/announce-node-red-contrib-homie-convention/16329)**
 
 **Thank you in advance.**
+
+## **important:** mqtt messages have to be stored as retained messages on the mqtt broker
+
+[please check here](https://github.com/Christian-Me/node-red-contrib-home/tree/master/Mosquitto) how to configure mosquitto if necessary
 
 ## changelog
 
 * 0.0.1 Initial release
 * 0.0.2 Fixes to run on Node-RED 1.0.x & bug fixes (see end of this file)
 * 0.0.3 added basic authentication and ssl/tls encryption. Beta testers welcome.
-
+* 0.0.4 bug fix: extensions not listed correctly in properties list
+* 0.0.5 bug fix: mqtt credentials not saved correctly (for front end to be readable)
 ## concept
 
 Announcements for `devices`/`nodes`/`properties` are stored on the mqtt broker as retained messages or sent "live". The homie-convention node collects the retained messages and makes it easy to select the property of interest. 
@@ -81,6 +85,7 @@ Typically dashboard items which can send values like buttons or sliders are wire
 **IMPORTANT WARNING:**
 make sure to deselect `If msg arrives on input, set slider to new payload value:` otherwise you can create a infinite loop flooding your devices and mqtt broker.
 ![dashboard flow 01](./screenshots/dashboard-passtrough.png)
+If this happens restart node-red with -save flag and deselect tis option before starting the flow.
 
 ## predicted states
 The homie convention defines a topic for sending *original* information to the broker and one for sending *settable* information to a parameter *.../parameter/**set***
@@ -185,7 +190,7 @@ msg.topic | copy the label to msg.topic
 msg.topic | copy the label to msg.payload. Only for startup messages.
 
 ## extra configuration
-Additional information like timing, errors and atrributes can be added to the msg object
+Additional information like timing, errors and attributes can be added to the msg object
 
 parameter | description
 ----------|------------
@@ -195,7 +200,7 @@ msg.attributes | Select to receive attributes information.
 
 ## inputs
 
-The payload on the imput will be sent to the mqtt broker. The topic is either specified by <code>msg.topic</code> or by the homie node configuration. Wildcards are possible for devices and nodes. If wildcards are used multiple messages will be set. The msg.topic should be formated as device/node/property. The rood topic homie and the /set postfix will be added.
+The payload on the input will be sent to the mqtt broker. The topic is either specified by <code>msg.topic</code> or by the homie node configuration. Wildcards are possible for devices and nodes. If wildcards are used multiple messages will be set. The msg.topic should be formated as device/node/property. The rood topic homie and the /set postfix will be added.
 
 The input format of msg.payload is compatible to the supported dashboard nodes. The node tries to convert not homie compatible formats automatically. If the conversion fails a error message will be sent via the error output.  
 
@@ -246,7 +251,7 @@ payload | object | Error message if an error accrued while receiving or converti
 - [X] make it 1.0 compatible ***it is now usable***
 - [ ] make it fully 1.0 compatible ***further tests requited***
 - [X] ~~Use the Build in MQTT client~~ basic authentication  ( user /password) and SSL/TLS encryption ***BETA*** 
-- [ ] able to use websockets for mqtt.
+- [ ] able to use websocket for mqtt.
 - [ ] detect offline nodes by checking the interval of received messages
 - [ ] make use of the `$state` attribute
 - [X] implement extensions
@@ -256,6 +261,10 @@ payload | object | Error message if an error accrued while receiving or converti
 - [ ] add some "real life" examples to documentation
 
 ## bugfixes & feature updates
+
+### 0.0.5
+
+* bug fix: mqtt broker credentials not saved correctly
 
 ### 0.0.4
 
@@ -275,7 +284,7 @@ It uses the same mqtt module as the core mqtt node. The design is a little bit d
 ### 0.0.2
 
 * compatibility to Node-RED 1.0.x - not in detail but it works for now
-* "multiselect" dropdown lists seams not to work oi Node-RED V1.x.x > use standard dropdown now until a working version of searchable dropdown boxes is found
+* "multi select" dropdown lists seams not to work oi Node-RED V1.x.x > use standard dropdown now until a working version of searchable dropdown boxes is found
 * duplicates in some dropdown lists > **fixed**
 * moved console logs when new messages arrive to trace to keep the log "info" log clean.
 * some typos fixed.
