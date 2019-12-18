@@ -10,16 +10,17 @@
 
 Details of the homie convention are available here [https://homieiot.github.io/]
 
-This node is tested with version **4.0.0** of the Homie convention but should work with version 3.0.x too. 
+This node is tested with version **4.0.0** of the Homie convention but should work with version 3.0.x too.
+
+## **important:** mqtt messages have to be stored as retained messages on the mqtt broker
+
+[please check here](https://github.com/Christian-Me/node-red-contrib-home/tree/master/Mosquitto) how to configure mosquitto if necessary
 
 **BETA version! Please raise an issue on [github](https://github.com/Christian-Me/node-red-contrib-homie-convention/issues) if you run into any problems. Every support counts.**
 **For questions, ideas and feature request please use the [Node-RED forum](https://discourse.nodered.org/t/announce-node-red-contrib-homie-convention/16329)**
 
 **Thank you in advance.**
 
-## **important:** mqtt messages have to be stored as retained messages on the mqtt broker
-
-[please check here](https://github.com/Christian-Me/node-red-contrib-home/tree/master/Mosquitto) how to configure mosquitto if necessary
 
 ## changelog
 
@@ -27,7 +28,8 @@ This node is tested with version **4.0.0** of the Homie convention but should wo
 * 0.0.2 Fixes to run on Node-RED 1.0.x & bug fixes (see end of this file)
 * 0.0.3 added basic authentication and ssl/tls encryption. Beta testers welcome.
 * 0.0.4 bug fix: extensions not listed correctly in properties list
-* 0.0.5 bug fix: mqtt credentials not saved correctly (for front end to be readable)
+* 0.0.5 bug fix: mqtt credentials not saved correctly
+
 ## concept
 
 Announcements for `devices`/`nodes`/`properties` are stored on the mqtt broker as retained messages or sent "live". The homie-convention node collects the retained messages and makes it easy to select the property of interest. 
@@ -265,6 +267,7 @@ payload | object | Error message if an error accrued while receiving or converti
 ### 0.0.5
 
 * bug fix: mqtt broker credentials not saved correctly
+* bug fix: duplicate entries in dropdown lists
 
 ### 0.0.4
 
