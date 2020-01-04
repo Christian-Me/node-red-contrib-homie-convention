@@ -264,6 +264,10 @@ payload | object | Error message if an error accrued while receiving or converti
 
 ## bugfixes & feature updates
 
+### 0.0.6
+
+* button as switch can now be used for boolean `$datatype` values. Send `msg.payload`="toggle" to switch current state
+
 ### 0.0.5
 
 * bug fix: mqtt broker credentials not saved correctly

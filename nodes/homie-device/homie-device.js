@@ -179,8 +179,9 @@ module.exports = function (RED) {
         case 'uiButtonSwitch':
                   msgOut.ui_control={"color":node.uiColor1};
                   msgOut.ui_control.bgcolor=node.uiBgColor1;
-                  if (msgOut.payload && property.$datatype && property.$format) {
+                  if (msgOut.hasOwnProperty("payload") && property.hasOwnProperty("$datatype") && property.hasOwnProperty("$format")) {
                     switch(property.$datatype){
+                      case 'boolean':
                       case 'enum':
                         var enumValues = property.$format.split(',');
                         if ((typeof msgOut.payload=="boolean" && !msgOut.payload) || msgOut.payload==enumValues[0]) { // OFF state
@@ -194,8 +195,6 @@ module.exports = function (RED) {
                           msgOut.error.errorText="uiButtonSwitch for enum property "+msgOut.topic+". $format="+property.$format+". msg.payload="+msgOut.payload+" does not match first two opitions! No output";
                           node.send([null,msgOut.error]);
                         }
-                        break;
-                      case 'boolean':
                         break;
                     }
                   }
@@ -497,7 +496,7 @@ module.exports = function (RED) {
                     case ('string'):
                       msgOut.payload=msg.payload;
                       break;
-                    case ('boolean'): // accept true/false, 0/1, "ON"/"OFF", "on"/"off", "true"/"false";
+                    case ('boolean'): // accept true/false, 0/1, "ON"/"OFF", "on"/"off", "true"/"false", "toggle" empty string to toggle state;
                       msgOut.payload=false;
                       switch (msg.payload) {
                         case (true): msgOut.payload=true;
@@ -509,6 +508,8 @@ module.exports = function (RED) {
                         case ('ON'): msgOut.payload=true;
                           break;
                         case ('on'): msgOut.payload=true;
+                          break;
+                        case ('toggle'): msgOut.payload=!property.value;
                           break;
                         default:
                           if (!(msg.payload==false || msg.payload==0 || msg.payload=='false' || msg.payload=='on' || msg.payload=='ON')) { // no matches at all
