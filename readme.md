@@ -29,6 +29,7 @@ This node is tested with version **4.0.0** of the Homie convention but should wo
 * 0.0.3 added basic authentication and ssl/tls encryption. Beta testers welcome.
 * 0.0.4 bug fix: extensions not listed correctly in properties list
 * 0.0.5 bug fix: mqtt credentials not saved correctly
+* 0.0.6 button as switch can now be used for boolean `$datatype` values. Send `msg.payload`="toggle" to switch current state
 
 ## concept
 
@@ -134,6 +135,8 @@ OFF | color for false/off state
 predicted ON | check if you want that the button have this color when set to ON until a new state on the input arrives
 predicted OFF | check if you want that the button have this color when set to OFF until a new state on the input arrives
 Tooltip | Tooltip if user hoovers over the element. Needs reload of the dashboard to appear.
+
+button as switch can now be used for boolean `$datatype` values. Send `msg.payload`="toggle" to switch current state
 
 ### chart
 The min and max values received by the homie `$format` attribute can be used to limit the Y-axis range. Use the msg.label feature to name the individual curves if you have selected wildcards in the basic configuration tab.
