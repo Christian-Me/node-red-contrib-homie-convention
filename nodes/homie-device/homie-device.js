@@ -702,17 +702,17 @@ module.exports = function (RED) {
                           } else {
                             node.status({ fill: 'green', shape: 'dot', text: '#' + msgOut.timing.msgCounter + ' (' + Math.floor(msgOut.timing.interval/1000) + 's) '+ msgOut.topic + '=' + msgOut.payload});
                           }
-                          node.addUiControl(msgOut); // only add UI controls if there was NO error
                           break;
             }
-
+            if (msgOut.error.status!=='error') node.addUiControl(msgOut); // only add UI controls if there was NO error
             node.prepareMsgOut(msgOut);
 
             if (!msgOut.topic) return;
             if (!node.infoTiming) delete msgOut.timing;
             if (!node.infoAttributes) delete msgOut.attributes;
-            if (!node.infoError && msgOut.error.status=='ok') delete msgOut.error;
-            if (msgOut.error===undefined || msgOut.error.status=='ok') node.send([msgOut,null]);
+            if (!node.infoError && msgOut.error.status==='ok') delete msgOut.error;
+            // console.log("broker.on",msgOut);
+            if (msgOut.error===undefined || msgOut.error.status!=='error') node.send([msgOut,null]);
               else node.send([null,msgOut]); // send error Message only.
             node.addToLog("trace",log);
           }
@@ -858,9 +858,73 @@ module.exports = function (RED) {
       }
     }
 
+    var addStateToList = function (device) {
+    var item = {};
+    const homieDef = {
+      "$state":{"icon":"fa fa-bolt","type":"enum","unit":"","required":true,"default":"lost","format":
+        {
+          "init":"fa fa-cog fa-spin",
+          "ready":"fa fa-spinner fa-spin",
+          "disconnected":"fa fa-times",
+          "sleeping":"fa fa-moon-o",
+          "lost":"fa fa-question-circle",
+          "alert":"fa fa-exclamation-triangle"
+        }
+      },
+      "$homie":{"icon":"fa fa-tag","type":"string","unit":"","required":true,"default":"n/a","format":""},
+      "$extensions":{"icon":"fa fa-tags","type":"string","unit":"","required":false,"default":"n/a","format":""},
+      "$type":{"icon":"fa fa-cogs","type":"string","unit":"","required":true,"default":"n/a","format":""},
+      "$implementation":{"icon":"fa fa-code","type":"string","unit":"","required":false,"default":"n/a","format":""},
+      "$localip":{"icon":"fa fa-address-card-o","type":"string","unit":"","required":true,"default":"n/a","format":""},
+      "$mac":{"icon":"fa fa-barcode","type":"string","unit":"","required":true,"default":"n/a","format":""},
+      "$fw":{
+        "name":{"icon":"fa fa-file-code-o","type":"string","unit":"","required":true,"default":"n/a","format":""},
+        "version":{"icon":"fa fa-code-fork","type":"string","unit":"","required":true,"default":"n/a","format":""},
+        "*":{"icon":"fa fa-label","type":"string","unit":"","required":false,"default":"","format":""} 
+      },
+      "$stats": {
+        "interval":{"icon":"fa fa-undo","type":"integer","unit":"sec","required":true,"default":0,"format":""},
+        "uptime":{"icon":"fa fa-clock-o","type":"integer","unit":"sec","required":true,"default":0,"format":""},
+        "signal":{"icon":"fa fa-wifi","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
+        "cputemp":{"icon":"fa fa-thermometer-half","type":"float","unit":"°C","required":false,"default":0,"format":""},
+        "cpuload":{"icon":"fa fa-microchip","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
+        "battery":{"icon":"fa fa-battery-half","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
+        "freeheap":{"icon":"fa fa-braille","type":"integer","unit":"bytes","required":false,"default":0,"format":""},
+        "supply":{"icon":"fa fa-plug","type":"float","unit":"V","required":false,"default":0,"format":""},
+      }
+    };
+    item.class= 'palette-header';
+    item.label= device.$name + " [" + device.$state + "]";
+    item.icon= homieDef.$state.format[device.$state];
+    item.children=[];
+    // console.log("statsList",device)
+    for (var element in device) {
+      if (homieDef.hasOwnProperty(element)) {
+        if (homieDef[element] && homieDef[element].hasOwnProperty("icon")) {
+          item.children.push({"label": element +" = "+ (device[element] || "n/a")+" "+homieDef[element].unit, "icon": homieDef[element].icon});
+        } else {
+          if (typeof device[element] === "object") {
+            for (var subElement in device[element]) {
+              // console.log(element,subElement,device[element][subElement]);
+              if (homieDef[element][subElement] && homieDef[element][subElement].hasOwnProperty("icon")) {
+                item.children.push({"label": subElement +" = "+ (device[element][subElement].value || "n/a")+" "+homieDef[element][subElement].unit, "icon": homieDef[element][subElement].icon});
+              } else {
+                // RED.log.error("[homie stats list] child "+subElement+" not defined");
+              }
+            }
+          } else {
+            RED.log.error("[homie stats list] "+element+" not defined");
+          }
+        }
+      }
+    }
+    devices.push(item);
+    }
+
     // config.addToLog("debug","/homieConvention/deviceList called for broker " + config.name + " query: "+ config.itemID+" Filter D:"+config.deviceID+" N:"+config.nodeID+" P:"+config.propertyID+" S:"+config.settable);
     var errorStr = "";
     switch (config.itemID) {
+      case 'stateDeviceID':
       case 'deviceID':    devices = broker.homieDevices;
                           break;
       case 'nodeID':      if (config.deviceID!="[any]") { // nodes from a specific device
@@ -880,45 +944,50 @@ module.exports = function (RED) {
                           break;
       case 'propertyID':
       case 'treeList': 
-                          // node.addToLog("debug","deviceList : "+config.deviceID+"/"+config.nodeID+"/"+config.propertyID+" Settable:"+config.settable);
+        // node.addToLog("debug","deviceList : "+config.deviceID+"/"+config.nodeID+"/"+config.propertyID+" Settable:"+config.settable);
 
-                          if (config.deviceID!="[any]" && config.nodeID!="[any]") { // property from a specific device and node
-                            device = broker.homieData[config.deviceID];
-                            node = broker.homieData[config.deviceID][config.nodeID];
-                            if (device!==undefined && node!==undefined) {
-                              if (config.nodeID.substr(0,1)=='$') node.itemList.forEach(addExtensionPropertyToList)
-                              else node.itemList.forEach(addPropertyToList);
-                            }
-                          } else {
-                            if (config.deviceID=="[any]") { // Include [any] device. loop through devices
-                              for (var deviceName in broker.homieData) {
-                                device=broker.homieData[deviceName];
-                                if (device.itemList!==undefined) {
-                                  if (config.nodeID=="[any]") { // loop through nodes
-                                    device.itemList.forEach(addNodeToList);
-                                  } else { // specific node defined
-                                    node = device[config.nodeID];
-                                    if (node!==undefined) {
-                                     if (node.itemList!==undefined) node.itemList.forEach(addPropertyToList);
-                                    }
-                                  }
-                                } 
-                              }
-                            } else { // specific device defined
-                              device = broker.homieData[config.deviceID];
-                              if (device.itemList!==undefined) {
-                                if (config.nodeID=="[any]") { // loop through nodes
-                                  device.itemList.forEach(addNodeToList);
-                                } else { // specific node defined
-                                  if (device[config.nodeID]!==undefined) {
-                                    node = device[config.nodeID];
-                                    node.itemList.forEach(addPropertyToList);
-                                  } 
-                                }
-                              }
-                            }
-                          }
-                          break;
+        if (config.deviceID!=="[any]" && config.nodeID!=="[any]") { // property from a specific device and node
+          device = broker.homieData[config.deviceID];
+          node = broker.homieData[config.deviceID][config.nodeID];
+          if (device!==undefined && node!==undefined) {
+            if (config.nodeID.substr(0,1)=='$') node.itemList.forEach(addExtensionPropertyToList)
+            else node.itemList.forEach(addPropertyToList);
+          }
+        } else {
+          if (config.deviceID==="[any]") { // Include [any] device. loop through devices
+            for (var deviceName in broker.homieData) {
+              device=broker.homieData[deviceName];
+              if (device.itemList!==undefined) {
+                if (config.nodeID=="[any]") { // loop through nodes
+                  device.itemList.forEach(addNodeToList);
+                } else { // specific node defined
+                  node = device[config.nodeID];
+                  if (node!==undefined) {
+                  if (node.itemList!==undefined) node.itemList.forEach(addPropertyToList);
+                  }
+                }
+              }
+            }
+          } else { // specific device defined
+            if (device.itemList!==undefined) {
+              if (config.nodeID=="[any]") { // loop through nodes
+                device.itemList.forEach(addNodeToList);
+              } else { // specific node defined
+                if (device[config.nodeID]!==undefined) {
+                  node = device[config.nodeID];
+                  node.itemList.forEach(addPropertyToList);
+                } 
+              }
+            }
+          }
+        }
+        break;
+      case 'stateList':
+        for (var deviceName in broker.homieData) {
+          device=broker.homieData[deviceName];
+          addStateToList(device);
+        }
+        break;
     }
 
     res.json(devices);

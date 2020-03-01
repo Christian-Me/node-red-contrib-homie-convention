@@ -1,9 +1,10 @@
 {
   "name": "node-red-contrib-homie-convention",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "description": "Node-RED nodes for MQTT communication according to the MQTT HOMIE convention",
   "dependencies": {
     "internal-ip": "^1.1.0",
+    "os": "^10.0.0",
     "mqtt": "^1.6.3"
   },
   "repository": {
@@ -27,7 +28,8 @@
   "node-red": {
     "nodes": {
       "homie-convention-broker-config": "nodes/homie-device-config/homie-device-config.js",
-      "homie-convention-device": "nodes/homie-device/homie-device.js"
+      "homie-convention-device": "nodes/homie-device/homie-device.js",
+      "homie-convention-state": "nodes/homie-state/homie-state.js"
     }
   }
 }

@@ -248,7 +248,7 @@
           <label for="node-input-addLabel"><i class="fa fa-tags"></i> <code>msg.label</code></label>
           <select id="node-input-addLabel">
              <option value="none">none</option>
-             <option value="mame">$name</option>
+             <option value="name">$name</option>
              <option value="custom">custom</option>
              <option value="device">device</option>
              <option value="node">node</option>
@@ -543,7 +543,9 @@
 
   RED.nodes.registerType('homie-convention-device', {
     category: 'Homie convention',
-    color: '#FFAAAA',
+    paletteLabel: 'Homie device',
+    label: 'Homie device',
+    color: '#e74c3c',
     defaults: {
       broker: {value: '', type: 'homie-convention-broker-config', required: true},
       name: {value: ''},
@@ -585,7 +587,7 @@
     },
     inputs: 1,
     outputs: 2,
-    icon: "homie.png",
+    icon: "homie-device.png",
     label: function() {
       this.topic= this.deviceID;
       this.topic += '/'+this.nodeID;

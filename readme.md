@@ -8,7 +8,7 @@
 >
 >It is thereby a crucial aspect on top of the MQTT protocol for automatic discovery, configuration and usage of devices and services.
 
-Details of the homie convention are available here [https://homieiot.github.io/]
+Details of the homie convention are available here [https://homieiot.github.io/](https://homieiot.github.io/)
 
 This node is tested with version **4.0.0** of the Homie convention but should work with version 3.0.x too.
 
@@ -22,14 +22,12 @@ This node is tested with version **4.0.0** of the Homie convention but should wo
 **Thank you in advance.**
 
 
-## changelog
+## latest update
 
-* 0.0.1 Initial release
-* 0.0.2 Fixes to run on Node-RED 1.0.x & bug fixes (see end of this file)
-* 0.0.3 added basic authentication and ssl/tls encryption. Beta testers welcome.
-* 0.0.4 bug fix: extensions not listed correctly in properties list
-* 0.0.5 bug fix: mqtt credentials not saved correctly
-* 0.0.6 button as switch can now be used for boolean `$datatype` values. Send `msg.payload`="toggle" to switch current state
+complete changelog see end of file
+
+* 0.1.0 beta: several bug fixes. **New homie state node.**
+* 0.0.7 bug fix: message occasionally carry the wrong topic (when using `msg.topic=msg.label`)
 
 ## concept
 
@@ -37,9 +35,23 @@ Announcements for `devices`/`nodes`/`properties` are stored on the mqtt broker a
 Additional attributes can be translated to useful messages to configure dashboard nodes.
 The node sends messages received on the input to the configured property. It also tries to convert data types if possible.
 
+## nodes
+
+### homie-device node (BETA)
+
+![homie-device node](./screenshots/homie-device-node.png)
+
+Main node for receiving updates form devices or sending `/set` commands to properties
+
+### homie-state node (early BETA)
+
+![homie-state node](./screenshots/homie-state-node.png)
+
+Node to receive configuration data from homie devices and regular status updates
+
 ## configuration
 
-The Node uses one configuration node to define the mqtt broker to be used
+The nodes uses one configuration node to define the mqtt broker to be used
 
 parameter | description
 ----------|------------
@@ -105,6 +117,7 @@ This mechanism makes it possible to determine if the value was send by a **contr
 This logic is currently not (or only partially) implemented in the dashboard nodes by default. The *homie-convention-node* tries to implement this by using the msg.ui_control object. As the capabilities of each dashboard node differs the destination node has to be selected.
 
 ![dashboard node](./screenshots/dashboard-node.png)
+
 parameter | description
 ----------|------------
 Node | select the type of node you like to connect to the output. Individual options will appear. Most of the options are set by using the ui_control object.
@@ -258,7 +271,7 @@ payload | object | Error message if an error accrued while receiving or converti
 - [X] ~~Use the Build in MQTT client~~ basic authentication  ( user /password) and SSL/TLS encryption ***BETA*** 
 - [ ] able to use websocket for mqtt.
 - [ ] detect offline nodes by checking the interval of received messages
-- [ ] make use of the `$state` attribute
+- [X] make use of the `$state` attribute
 - [X] implement extensions
 - [ ] special node to make Node-RED a homie device announcing services
 - [ ] write the documentation in *good* english as I'm not a native speaker, sorry.
@@ -266,6 +279,15 @@ payload | object | Error message if an error accrued while receiving or converti
 - [ ] add some "real life" examples to documentation
 
 ## bugfixes & feature updates
+
+### 0.1.0
+
+* new feature: New state node
+* bug fixes: Several bug fixes
+
+### 0.0.7
+
+* bug fix: message occasionally carry the wrong topic (when using `msg.topic=msg.label`)
 
 ### 0.0.6
 

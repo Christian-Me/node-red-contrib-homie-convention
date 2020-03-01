@@ -1,11 +1,46 @@
 var ip = require('internal-ip');
+var os = require('os');
 var mqtt = require('mqtt');
 
 module.exports = function (RED) {
   function homieDeviceConfig (config) {
     RED.nodes.createNode(this, config);
     var node = this;
-    
+    this.homieExDef = {
+      "$state":{"icon":"fa fa-bolt","type":"enum","unit":"","required":true,"default":"lost","format":
+        {
+          "init":"fa fa-cog fa-spin",
+          "ready":"fa fa-spinner fa-spin",
+          "disconnected":"fa fa-times",
+          "sleeping":"fa fa-moon-o",
+          "lost":"fa fa-question-circle",
+          "alert":"fa fa-exclamation-triangle"
+        }
+      },
+      "$homie":{"icon":"fa fa-label","type":"string","unit":"","required":true,"default":"n/a","format":""},
+      "$nodes":{"icon":"fa fa-labels","type":"array","unit":"","required":true,"default":"n/a","format":""},
+      "$extensions":{"icon":"fa fa-labels","type":"string","unit":"","required":true,"default":"n/a","format":""},
+      "$type":{"icon":"fa fa-cogs","type":"string","unit":"","required":true,"default":"n/a","format":""},
+      "$implementation":{"icon":"fa fa-code","type":"string","unit":"","required":false,"default":"n/a","format":""},
+      "$localip":{"icon":"fa fa-address-card-o","type":"string","unit":"","required":true,"default":"n/a","format":""},
+      "$mac":{"icon":"fa fa-barcode","type":"string","unit":"","required":true,"default":"n/a","format":""},
+      "$fw":{
+        "name":{"icon":"fa fa-file-code-o","type":"string","unit":"","required":true,"default":"n/a","format":""},
+        "version":{"icon":"fa fa-code-fork","type":"string","unit":"","required":true,"default":"n/a","format":""},
+        "*":{"icon":"fa fa-label","type":"string","unit":"","required":false,"default":"","format":""} 
+      },
+      "$stats": {
+        "interval":{"icon":"fa fa-undo","type":"integer","unit":"sec","required":true,"default":0,"format":""},
+        "uptime":{"icon":"fa fa-clock-o","type":"integer","unit":"sec","required":true,"default":0,"format":""},
+        "signal":{"icon":"fa fa-wifi","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
+        "cputemp":{"icon":"fa fa-thermometer-half","type":"float","unit":"°C","required":false,"default":0,"format":""},
+        "cpuload":{"icon":"fa fa-microchip","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
+        "battery":{"icon":"fa fa-battery-half","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
+        "freeheap":{"icon":"fa fa-braille","type":"integer","unit":"bytes","required":false,"default":0,"format":""},
+        "supply":{"icon":"fa fa-plug","type":"float","unit":"V","required":false,"default":0,"format":""},
+      }
+    };
+        
     // ------------------------------------------
     // Handle console Logs
     // ------------------------------------------
@@ -68,7 +103,7 @@ module.exports = function (RED) {
     this.options.clientId= this.deviceId, 
     this.options.will= {
       topic: this.baseTopic + '/$state', 
-      payload: 'away', 
+      payload: 'lost', 
       qos: 2, 
       retain: true
     }  
@@ -107,10 +142,21 @@ module.exports = function (RED) {
       node.setState('connected');
 
       node.client.publish(node.baseTopic + '/$state', 'ready', { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$homie', '4.0.0', { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$name', node.name, { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$implementation', os.arch(), { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$localip', ip.v4(), { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$mac', ip.v4(), { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$extensions','org.homie.legacy-stats:0.1.1:[4.x],org.homie.legacy-firmware:0.1.1:[4.x]', { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$stats/uptime', os.uptime().toString(), { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$stats/cpuload', os.loadavg()[1].toString(), { qos: 2, retain: true }); // 5min average
+      node.client.publish(node.baseTopic + '/$stats/freeheap', os.freemem().toString(), { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$fw/name', 'Node-RED ('+os.platform()+' '+os.release()+')', { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$fw/version', RED.version(), { qos: 2, retain: true });
 
       node.client.subscribe(node.homieRoot + '/#', { qos: 2 });
+      node.client.subscribe('$SYS/broker/uptime', {qos : 0 });
+      node.client.subscribe('$SYS/broker/version', {qos : 0 });
     });
 
     this.getDeviceID= function (deviceName) {
@@ -228,7 +274,7 @@ module.exports = function (RED) {
 
       return true;
 */
-      if (nodeId.substr(0,1)=='$') {
+      if (nodeId.substr(0,1)==='$') {
         if (splitted.length < 4) {
           homieDevice[nodeId]=message.toString();
           if (globalDevices) globalDevices[deviceId][nodeId]=message.toString();
@@ -249,7 +295,8 @@ module.exports = function (RED) {
               currentGlobal=currentGlobal[splitted[i]];
             }
           }
-          currentObject[splitted[i]]=message.toString();
+          if (!currentObject.hasOwnProperty(splitted[i])) currentObject[splitted[i]]={};
+          currentObject[splitted[i]].message=message.toString();
           if (globalDevices) currentGlobal[splitted[i]]=message.toString();
         }
       } else {
@@ -488,18 +535,21 @@ module.exports = function (RED) {
         
       // Format Value according to $datatype and $format
       switch (property.$datatype) {
-        case undefined :  // datatype not specified
-            property.error = '$datatype not specified. Value will be undefined!'
-            break;
+//        case undefined :  // datatype not specified
+//            property.error = '$datatype not specified. Value will be undefined!'
+//            break;
         case 'integer': // format integer Value
+            property.valueBefore = property.value;
             property.value = Math.floor(Number(message));
             result = true;
             break;
         case 'float': // format float value
+            property.valueBefore = property.value;
             property.value = Number(message);
             result = true;
             break;
         case 'boolean': // format boolean value
+            property.valueBefore = property.value;
             if (message=='true') {
               property.payload = true;
               property.value = 1;
@@ -513,6 +563,7 @@ module.exports = function (RED) {
             }
             break;
         case 'string': // format string value
+            property.valueBefore = property.value;
             property.value=messageString;
             result = true;
             break;
@@ -521,6 +572,7 @@ module.exports = function (RED) {
               var enumList = property.$format.split(',');
               for (var i=0; i<enumList.length; i++) {
                 if (messageString==enumList[i]) {
+                  property.valueBefore = property.value;
                   property.value = i;
                   result = true;
                   break;
@@ -542,6 +594,7 @@ module.exports = function (RED) {
                     property.error = 'color value expected as 3 values r,g,b received: '+messageString;
                     break;
                   } else {
+                    property.valueBefore = property.value;
                     property.value = {};
                     property.value.r = Number(colors[0]);
                     property.value.g = Number(colors[1]);
@@ -554,6 +607,7 @@ module.exports = function (RED) {
                   if (colors.length!=3) {
                     property.error = 'color value expected as 3 values h,s,v received: '+messageString;
                   } else {
+                    property.valueBefore = property.value;
                     property.value = {};
                     property.value.h = Number(colors[0]);
                     property.value.s = Number(colors[1])/100;
@@ -569,9 +623,17 @@ module.exports = function (RED) {
             break;
 
         default: // $datatype undefined or invalid
-            property.value = messageString; // emit message anyway 
-            property.error = '$datatype undefined or invalid: '+property.$datatype;
-            property.status = 'warning';
+            if (node.homieExDef.hasOwnProperty(property.nodeId)) {
+              if (node.homieExDef[property.nodeId].hasOwnProperty("type")) {
+                property.valueBefore = property.value;
+                property.value = node.formatProperty(messageString,node.homieExDef[property.nodeId].type);
+              }
+            } else {
+              property.valueBefore = property.value;
+              property.value = messageString; // emit message anyway 
+              property.error = '$datatype undefined or invalid: '+property.$datatype;
+              property.status = 'warning';
+            }
       }
 
       // Set Timing Data
@@ -608,6 +670,7 @@ module.exports = function (RED) {
       msgOut.message = homieProperty.message;
       msgOut.payload = homieProperty.payload;
       msgOut.value = homieProperty.value;
+      msgOut.valueBefore = homieProperty.valueBefore;
       msgOut.predicted = homieProperty.predicted;
       
       // timing data
@@ -631,7 +694,7 @@ module.exports = function (RED) {
 
       return msgOut;
     }
-    
+
     // ----------------------------------------------------------
     // New Message via MQTT
     // ----------------------------------------------------------
@@ -647,7 +710,34 @@ module.exports = function (RED) {
       if (!itemExist) itemList.push({"name":itemName,"value":itemValue});
     }
  
+    this.formatProperty = function (payload,type) {
+      var result = payload;
+      switch (type) {
+        case 'integer':
+          result=Math.floor(Number(payload));
+          break;
+        case 'float':
+          break;
+        case 'boolean':
+          result=(payload.toLowerCase==='true' || payload==1) ? true : false;
+          break;
+        case 'array':
+          result=payload.split(',');
+      }
+      return result;
+    }
+
     this.messageArrived = function (topic, message) {
+      // special mqtt broker values (treat $sys messages from broker as homie device)
+      switch (topic){
+        case '$SYS/broker/uptime':
+          topic = "homie/"+node.name+"/$stats/uptime";
+          message = parseInt(message);
+          break;
+        case '$SYS/broker/version':
+          topic = "homie/"+node.name+"/$fw/name";
+          break;
+      }
       var splitted = topic.split('/');
       var deviceName = splitted[1];
       var nodeId = splitted[2] || '';
@@ -655,6 +745,13 @@ module.exports = function (RED) {
       var property = splitted[4] || '';
       var messageString = message.toString();
 
+
+      var stateMsg = {
+        "topic": deviceName+'/'+nodeId,
+        "deviceId": deviceName,
+        "nodeId": nodeId,
+        "payload": messageString
+      }
       
       if (node.homieDevices===undefined) node.devices=[];
 
@@ -672,6 +769,22 @@ module.exports = function (RED) {
             }
             node.addToLog("info","Homie Device: "+ deviceName +" has "+i+" nodes: "+ messageString);
 //            node.validateHomie('device', deviceName, '', '', true); // validate homie Device when $nodes topic arrives
+          } 
+          if (node.homieExDef.hasOwnProperty(nodeId)) {
+            // build first level state message
+            stateMsg.topic= node.brokerurl+'/'+node.homieRoot+'/'+deviceName;
+            stateMsg.propertyId= nodeId;
+            stateMsg.value= node.formatProperty(messageString,node.homieExDef[nodeId].type);
+            stateMsg.broker= node.name;
+            stateMsg.brokerUrl= node.brokerurl;
+            stateMsg.homieRoot= node.homieRoot;
+            stateMsg.state= {"$name":deviceName};
+            stateMsg.state[nodeId]= stateMsg.value;
+            if (nodeId==='$state' && node.homieExDef[nodeId].hasOwnProperty('format') && node.homieExDef[nodeId].format.hasOwnProperty(messageString)) {
+              stateMsg.state[nodeId+'Icon']=node.homieExDef[nodeId].format[messageString];
+            }
+            node.emit('stateMessage', stateMsg);
+            return;
           }
           break;
         }
@@ -685,18 +798,25 @@ module.exports = function (RED) {
 //            node.validateHomie('node', deviceName, nodeId, '', true); // validate homie Node when $properties topic arrives
           } else if (propertyId.substr(0,1)!='$') { // value arrived
             var homieProperty = node.homieData[deviceName][nodeId][propertyId];
+            var emitMsg = 'message';
 
-            if (nodeId.substr(0,1)!='$' || nodeId=="$stats" || nodeId=="$fw" || nodeId=="$implementation") { // if this is not an extension $fw or $stats or $....
-              if (nodeId=="$stats" || nodeId=="$fw" || nodeId=="$implementation") {
+            if (nodeId.substr(0,1)!='$' || node.homieExDef.hasOwnProperty(nodeId)) { // if this is not an extension $fw or $stats or $....
+              if (node.homieExDef.hasOwnProperty(nodeId)) {
                 // add extension to itemList
                 node.pushToItemList(node.homieData[deviceName].itemList,nodeId,nodeId+" extension");
                 // add extension property to itemList
                 if (!node.homieData[deviceName][nodeId].itemList) node.homieData[deviceName][nodeId].itemList=[];
                 node.homieData[deviceName][nodeId].nodeId=nodeId;
                 node.pushToItemList(node.homieData[deviceName][nodeId].itemList,propertyId,nodeId+'/'+propertyId);
-                var homieProperty = node.homieData[deviceName][nodeId]
+                emitMsg = 'stateMessage'
+                homieProperty.extraId=nodeId;
+                
+                var extraConfig=node.homieExDef[nodeId];
+                if (extraConfig.hasOwnProperty(propertyId)) extraConfig=extraConfig[propertyId];
+                homieProperty.$datatype=extraConfig.type;
+                homieProperty.$unit=extraConfig.unit;
+                homieProperty.$format=extraConfig.format; 
               }
-
               if (node.storeMessage(homieProperty, message)) {
                 homieProperty.propertyId=propertyId;
                 homieProperty.predicted = false;
@@ -707,7 +827,8 @@ module.exports = function (RED) {
             }
            
             var msgOut = node.buildMsgOut(deviceName, nodeId, propertyId, homieProperty);
-            node.emit('message', msgOut);
+            
+            node.emit(emitMsg, msgOut);
           }
           break;
         }

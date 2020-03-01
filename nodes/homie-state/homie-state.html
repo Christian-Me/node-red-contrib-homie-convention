@@ -1,0 +1,326 @@
+<script type="text/html text/x-red" data-template-name="homie-convention-state">
+<!--
+
+  <style type="text/css">
+    .btn-group {
+      width: 70%;
+    }
+    .multiselect {
+      width: 100%;
+    }
+    .form-row input.multiselect-search {
+      width: 100%;
+    }
+    .multiselect-clear-filter {
+        display: none;
+    }
+    .dropdown-menu {
+        width: 100% !important;
+      }
+      .multiselect-container input[type="checkbox"] {
+        display: none;
+    }
+    .multiselect-container > li > a > label.radio {
+      margin: 5px;
+      width: 90%;
+      height: 100%;
+      cursor: pointer;
+        font-weight: 400;
+        padding: 3px 20px 3px 20px;
+      }
+      .multiselect-container label.radio input[type="radio"] {
+        display: none;
+    }
+  </style>
+  
+  <link rel="stylesheet" href="static/css/bootstrap-multiselect.css" type="text/css" />
+    
+  -->
+    <div class="form-row">
+      <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+      <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+      <label for="node-input-broker"><i class="fa fa-exchange"></i> Broker</label>
+      <input id="node-input-broker">
+    </div>
+
+    <div class="form-row">
+      <label for="node-input-stateDeviceID"><i class="fa fa-crosshairs"></i> Device</label>
+      <select id="node-input-stateDeviceID"></select>
+    </div>
+        
+    <div class="form-row">
+      <label><i class="fa fa-info-circle"></i> Aditional</label>
+      <input type="checkbox" id="node-input-infoTiming" style="display: inline-block; width: auto; vertical-align: top;">
+      <label for="node-input-infoTiming" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> include <code>msg.timing</code></label>
+    </div>
+    <div class="form-row">
+        <label>&nbsp</label>
+        <input type="checkbox" id="node-input-infoError" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-infoError" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> include <code>msg.error</code></label>
+    </div>
+    <div class="form-row">
+        <label>&nbsp</label>
+        <input type="checkbox" id="node-input-infoStats" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-infoStats" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> include <code>msg.stats</code></label>
+    </div>
+    <div class="form-row">
+        <label>&nbsp</label>
+        <input type="checkbox" id="node-input-infoFw" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-infoFw" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> include <code>msg.fw</code></label>
+    </div>
+
+    <div class="form-row node-homie-data-row"></div>
+</script>
+
+<script type="text/javascript">
+
+  var treeList;
+
+  // remember last selection to prevent unnecessary Updates
+  var lastDeviceID = '';
+
+	function stateConfigEditPrepare(node, allowEmpty) {
+
+       function updateProperty(cntrlConfig, valueID, itemName) {
+        if ( cntrlConfig ) {
+          var config = {
+            name: cntrlConfig.name,
+            broker: cntrlConfig.id,
+            // field name to query
+            itemID: valueID,
+            // filters to query
+            stateDeviceID: $('#node-input-stateDeviceID').val(),
+          }
+          console.log("updateProperty ("+itemName+") = ",cntrlConfig,config);
+          $.getJSON("homieConvention/propertyInfo", config)
+            .done( function(data) {
+              console.log("homieConvention/propertyInfo: "+ JSON.stringify(data));
+            })
+            .fail( function(e1, e2, e3) {
+              console.log("homieConvention/propertyInfo: error e1=" + JSON.stringify(e1));
+              console.log("homieConvention/propertyInfo: error e2=" + JSON.stringify(e2));
+              console.log("homieConvention/propertyInfo: error e3=" + JSON.stringify(e3));
+            });        }
+      }
+      function setColourPickerColour(id, val, ed) {
+                    $("#"+id).val(val);
+                    $("#"+id).css("background-color", val);
+                }
+
+      function updateItemSelection(cntrlConfig, valueID, itemName) {
+
+        var itemSelectionEl = $('#node-input-'+ valueID);
+        var treeData = [];
+/*
+        itemSelectionEl.multiselect({
+            enableFiltering: true,
+            enableCaseInsensitiveFiltering: true,
+            maxHeight: 300,
+            disableIfEmpty: true,
+            nonSelectedText: 'Select device...',
+            disabledText: 'No items found...'
+        });
+*/        
+        if ( cntrlConfig ) {
+          var config = {
+            name: cntrlConfig.name,
+            broker: cntrlConfig.id,
+            // field name to query
+            itemID: valueID,
+            // filters to query
+            stateDeviceID: $('#node-input-stateDeviceID').val() || node.stateDeviceID,
+            nodeID: "$state",
+            propertyID: "[any]",
+            settable: false
+          }
+          
+          console.log("[state] updateItemSelection ("+itemName+") = ",config);
+          $.getJSON("homieConvention/deviceList", config)
+            .done( function(data) {
+              console.log("[state] result",config.itemID,data);
+              var items = data;
+              if (config.itemID!=="stateList" ) { // fill dropdown list except for treeView updates
+                itemSelectionEl.children().remove();
+
+                items.sort(function(a,b) {
+                  if ( a.name.toLowerCase() < b.name.toLowerCase() )
+                    return -1;
+                  else if ( a.name.toLowerCase() > b.name.toLowerCase() )
+                    return 1;
+                  else
+                    return 0;
+                });
+
+                itemSelectionEl.append('<option value="[any]">[any]</option>');
+                items.forEach(function (item) {
+                  itemSelectionEl.append('<option value="'+item.value+'">' + item.name + '</option>');
+                });
+                itemSelectionEl.val(itemName);
+              } else { // fill treeList with selected properties
+                treeList.treeList('data',items);
+              }
+            })
+            .fail(function(e1, e2, e3) {
+              console.log("error : " + JSON.stringify(e1));
+            });
+        } else console.log("Ups, no broker config!:",cntrlConfig);
+    }
+    
+    console.log("configEditPrepare",node);
+    console.log(" deviceID  : ",$('#node-input-stateDeviceID').val());
+    
+		$('#node-input-broker').change(function(ev) { // update device list if broker is changed
+	        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'stateDeviceID', $('#node-input-stateDeviceID').val() || node.stateDeviceID);
+		});
+		$('#node-input-stateDeviceID').change(function(ev) {
+      console.log("[state] update state list?",lastDeviceID,"",$('#node-input-stateDeviceID').val());
+      if (!lastDeviceID || lastDeviceID!=$('#node-input-stateDeviceID').val()) { // update tree List if Device ID differs.  || $('#node-input-stateDeviceID').val() === '[any]'
+        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'stateList', $('#node-input-stateDeviceID').val() || node.stateDeviceID);
+      }  else console.log("[state] update state list skipped")
+      lastDeviceID=$('#node-input-stateDeviceID').val();
+		});
+	}
+
+  // register homie-convention-state
+
+  RED.nodes.registerType('homie-convention-state', {
+    category: 'Homie convention',
+    paletteLabel: 'Homie state',
+    label: 'Homie state',
+    color: '#e74c3c',
+    defaults: {
+      broker: {value: '', type: 'homie-convention-broker-config', required: true},
+      name: {value: ''},
+      stateDeviceID: {value: '[any]', required: true},
+      infoFw: {value: true},
+      infoStats: {value: true},
+      infoTiming: {value: false},
+      infoError: {value: false}
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "homie-state.png",
+    label: function() {
+      this.topic= this.stateDeviceID;
+      return this.name||this.topic||"homie state";
+    },
+    oneditprepare: function() {	
+
+      
+      treeList = $("<div>")
+            .css({width: "100%", height: "100%"})
+            .appendTo(".node-homie-data-row")
+            .treeList({})
+            .on('treelistitemmouseover',function(e,item) {
+                if (item.node) {
+                    item.node.highlighted = true;
+                    item.node.dirty = true;
+                    RED.view.redraw();
+                }
+            })
+            .on('treelistitemmouseout',function(e,item) {
+                if (item.node) {
+                    item.node.highlighted = false;
+                    item.node.dirty = true;
+                    RED.view.redraw();
+                }
+            });
+      treeList.treeList('data',[{label:"empty"}]);
+      var brokerNodeId = $("#node-input-broker").val();
+
+      if (!brokerNodeId) {
+        	// No config node has been specified, so no use to connect to the server ...
+          return;
+      }
+
+      stateConfigEditPrepare(this, true);
+    },
+    oneditresize: function () {
+        var rows = $("#dialog-form>div:not(.node-homie-data-row)");
+        var height = $("#dialog-form").height();
+        for (var i=0;i<rows.size();i++) {
+            height -= $(rows[i]).outerHeight(true);
+        }
+        var editorRow = $("#dialog-form>div.node-homie-data-row");
+        height -= (parseInt(editorRow.css("marginTop"))+parseInt(editorRow.css("marginBottom")));
+        $(".node-homie-data-row").css("height",height+"px");
+    },
+    
+  });
+</script>
+
+<script type="text/x-red" data-help-name="homie-convention-state">
+  <p> <img src="https://homieiot.github.io/img/mqtt_homie.jpg"></img>
+  </p>
+  <p>
+    A message is emitted when the <b>$state</b> topic (or any other status information) of any or a specific device changes. Detailed information you find at <a href="https://homieiot.github.io/specification/#device-lifecycle"> 
+  </p>
+  <p></p>
+	<b>Configuration</b>
+    <ul>
+        <li><b>Name :</b> Optionally specify a name</li>
+        <li><b>Broker :</b> Select the mqtt broker where your device is sending messages to.</li>
+    </ul>
+
+  <h3>basic configuration</h3>
+    <ul>
+      <li><b>Device :</b> Optionally select the device to address. If specified, it filters messages messages from a specific device.</li>
+    </ul>
+
+  <h3>extra configuration</h3>
+    <p>
+        Additional information like timing, errors, stats and firmware can be added to the msg object
+    </p>
+    <ul>
+        <li><b>msg.timing :</b> Select to receive timing information.</li>
+        <li><b>msg.error :</b> Select to receive error information. All Errors will be sent on 2nd output</li>
+        <li><b>msg.stats :</b> Select to receive data provided by the <a href="https://github.com/homieiot/convention/blob/develop/extensions/documents/homie_legacy_stats_extension.md"><b>Legacy Stats</b> extension.</a></li>
+        <li><b>msg.firmware :</b> Select to receive data provided by the <a href="https://github.com/homieiot/convention/blob/develop/extensions/documents/homie_legacy_firmware_extension.md"><b>Legacy Firmware</b> extension.</a></li>
+   	 </ul>
+  <p></p>
+  
+  <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload
+            <span class="property-type">string</span>
+        </dt>
+        <dd> device name or <b>[any]</b></br>the node only emits a state messages when it receives an update via mqtt. Send the device name to receive the last know state of the device</dd>
+        <dd> **NOT IMPLEMENTED YET**
+    </dl>
+
+ <h3>Outputs</h3>
+     <ol class="node-ports">
+         <li>Standard output
+             <dl class="message-properties">
+                 <dt>msg.payload <span class="property-type">string/span></dt>
+                 <dd>payload of the $stats topic</dd>
+
+                 <dt>msg.topic <span class="property-type">string</span></dt>
+                 <dd>uique deviceID of the emitting device (broker URL + device name)</dd>
+
+                 <dt>msg.device <span class="property-type">string</span></dt>
+                 <dd>Name of the device the message came from</dd>
+
+                 <dt>msg.stats <span class="property-type">object</span></dt>
+                 <dd>containing basic device information</dd>
+                 <dd>containing stats ($stats) information</dd>
+                 <dd>containing firmware ($fw) information</dd>
+             </dl>
+         </li>
+     </ol>
+
+  <h3>Details</h3>
+    <p>
+        The Homie convention defines a standardized way of how IoT devices and services announce themselves and their data on the MQTT broker.<br>
+        It is thereby a crucial aspect on top of the MQTT protocol for <i>automatic discovery, configuration</i> and <i>usage</i> of devices and services.<br>
+        Form more Information head over to <a href="https://homieiot.github.io/">https://homieiot.github.io/</a>
+    </p>  
+
+  <h3>References</h3>
+    <ul>
+        <li><a href="https://homieiot.github.io/">Homie Convention</a> - full specification of the Homie Convention</li>
+        <li><a href="https://github.com/Christian-Me/node-red-contrib-homie-convention">GitHub</a> - the nodes github repository</li>
+    </ul>
+</script>
