@@ -286,8 +286,13 @@
         <dt>payload
             <span class="property-type">string</span>
         </dt>
-        <dd> device name or <b>[any]</b></br>the node only emits a state messages when it receives an update via mqtt. Send the device name to receive the last know state of the device</dd>
-        <dd> **NOT IMPLEMENTED YET**
+        <dd> device name or <b>[any]</b></br>the node only emits a state messages when it receives an update via mqtt. Send the device name to receive the last know FULL state of the device</dd>
+    </dl>
+    <dl class="message-properties">
+      <dt>broker
+          <span class="property-type">string</span>
+      </dt>
+      <dd> <i>optional</i> full broker url in case of a multi broker environment</dd>
     </dl>
 
  <h3>Outputs</h3>
@@ -300,7 +305,7 @@
                  <dt>msg.topic <span class="property-type">string</span></dt>
                  <dd>uique deviceID of the emitting device (broker URL + device name)</dd>
 
-                 <dt>msg.device <span class="property-type">string</span></dt>
+                 <dt>msg.deviceId <span class="property-type">string</span></dt>
                  <dd>Name of the device the message came from</dd>
 
                  <dt>msg.stats <span class="property-type">object</span></dt>

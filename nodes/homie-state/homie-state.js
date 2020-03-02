@@ -98,12 +98,30 @@ module.exports = function (RED) {
     }
 
     this.on('input', function(msg) {
-      var msgError = {status: "error"};
-      msgError.function = "input"
-      var msgOut = {};
-      
-      node.addToLog("debug","Message arrived! topic="+msg.topic+" payload="+msg.payload);
+      if (msg.hasOwnProperty('broker') && msg.broker!==node.broker.brokerurl) return; // to be multi broker safe.
+      var result = false;
+      var deviceList=[];
+      if (!msg.payload || msg.payload==="") msg.payload=node.stateDeviceID;
+      var stateMsg = {"topic": node.broker.brokerurl+'/'+node.broker.homieRoot+'/'+msg.payload};
+      if (msg.payload!=='[any]') {
+        deviceList.push({"name":msg.payload});
+      } else {
+        deviceList=node.broker.homieDevices;
+      }
 
+      deviceList.forEach((device,index) => {
+        stateMsg = {
+          "topic": node.broker.brokerurl+'/'+node.broker.homieRoot+'/'+device.name,
+          "deviceId":device.name,
+          "state":{"$name":device.name}
+        };
+        result = node.buildStateObject(node.broker.homieData[stateMsg.deviceId],stateMsg.state);
+        if (!result) {
+          delete stateMsg.state;
+          stateMsg.error={status: "error", error: device.name+" not found"}
+        }
+        node.send([stateMsg]);
+      });
     });
 
     this.buildStateObject= function (device,stateObject) {
@@ -147,19 +165,6 @@ module.exports = function (RED) {
       if (msgOut===undefined) return;
       if (node.stateDeviceID=='[any]' || node.stateDeviceID===msgOut.deviceId) {
         if (triggerKeys.includes(msgOut.nodeId)) {
-/*          if (node.broker.homieExDef.hasOwnProperty(msgOut.nodeId)) {
-            var stateMsg = {
-              "deviceId":msgOut.deviceId,
-              "nodeId":msgOut.nodeId,
-              "value":msgOut.value,
-              "$datatype":node.broker.homieExDef[msgOut.nodeId].type,
-              "state":{"$name":msgOut.deviceId}
-            };
-            node.buildStateObject(node.broker.homieData[msgOut.deviceId],stateMsg.state);
-            stateMsg.topic=msgOut.deviceId+'/'+msgOut.nodeId
-            node.emit('stateMessage', stateMsg);
-            return;
-          }*/
           var a = msgOut.value;
           var b = msgOut.valueBefore;
           if (a != b) {
