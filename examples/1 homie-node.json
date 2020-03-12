@@ -1,0 +1,283 @@
+[
+    {
+        "id": "9835e443.367c38",
+        "type": "inject",
+        "z": "897fdb2a.109f68",
+        "name": "on startup",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "x": 138,
+        "y": 1156,
+        "wires": [
+            [
+                "1730b2a3.663fad"
+            ]
+        ]
+    },
+    {
+        "id": "66e25acb.666b54",
+        "type": "debug",
+        "z": "897fdb2a.109f68",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "x": 798,
+        "y": 1326,
+        "wires": []
+    },
+    {
+        "id": "1730b2a3.663fad",
+        "type": "function",
+        "z": "897fdb2a.109f68",
+        "name": "add def",
+        "func": "msg.homie={\n    \"$name\": \"testThermostat-01\",\n    \"$type\": \"homematic thermostat\",\n    \"$properties\": {\n        \"currentTemperature\":{\n            \"$name\": \"current temperature\",\n            \"$datatype\": \"float\",\n            \"$settable\": false,\n            \"$retained\": false,\n            \"$format\":\"-20:40\",\n            \"$unit\": \"°C\"\n        },\n        \"targetTemperature\":{\n            \"$name\": \"target temperature\",\n            \"$datatype\": \"float\",\n            \"$settable\": true,\n            \"$retained\": true,\n            \"$format\":\"10:28\",\n            \"$unit\": \"°C\"\n        },\n        \"currentValve\":{\n            \"$name\": \"current valve state\",\n            \"$datatype\": \"float\",\n            \"$settable\": false,\n            \"$retained\": false,\n            \"$format\":\"0:100\",\n            \"$unit\": \"%\"\n        }\n    }\n};\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 383,
+        "y": 1156,
+        "wires": [
+            [
+                "6dc70796.b65778"
+            ]
+        ]
+    },
+    {
+        "id": "55c3cda.4436634",
+        "type": "inject",
+        "z": "897fdb2a.109f68",
+        "name": "",
+        "topic": "currentTemperature",
+        "payload": "18.1",
+        "payloadType": "num",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 178,
+        "y": 1224,
+        "wires": [
+            [
+                "6dc70796.b65778"
+            ]
+        ]
+    },
+    {
+        "id": "6dc70796.b65778",
+        "type": "homie-convention-node",
+        "z": "897fdb2a.109f68",
+        "broker": "e6a23911.f60378",
+        "name": "",
+        "nodeId": "testNode",
+        "nodeName": "A test Node",
+        "nodeType": "Node-RED homie-node",
+        "passMsg": true,
+        "autoConfirm": true,
+        "infoHomie": true,
+        "infoError": true,
+        "exposeHomieNodes": true,
+        "homieNodeConfig": "{\n    \"homie\": {\n        \"$name\": \"testNode\",\n        \"$type\": \"A test Node\",\n        \"$properties\": {\n            \"battery\":{\n                \"$name\": \"battery state\",\n                \"$datatype\": \"float\",\n                \"$settable\": false,\n                \"$retained\": true,\n                \"$unit\": \"V\"\n            },\n            \"color\":{\n                \"$name\": \"a color\",\n                \"$datatype\": \"color\",\n                \"$format\": \"hsv\",\n                \"$settable\": true,\n                \"$retained\": true,\n                \"$unit\": \"\"\n            },\n            \"enum\":{\n                \"$name\": \"select\",\n                \"$datatype\": \"enum\",\n                \"$format\": \"Option 1,Option 2,Option 3\",\n                \"$settable\": true,\n                \"$retained\": true,\n                \"$unit\": \"\"\n            }\n            \n        }\n    }\n}",
+        "x": 631,
+        "y": 1326,
+        "wires": [
+            [
+                "66e25acb.666b54"
+            ]
+        ]
+    },
+    {
+        "id": "f5fb62eb.af9b2",
+        "type": "inject",
+        "z": "897fdb2a.109f68",
+        "name": "",
+        "topic": "currentTemperature",
+        "payload": "19.9",
+        "payloadType": "num",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 178,
+        "y": 1258,
+        "wires": [
+            [
+                "6dc70796.b65778"
+            ]
+        ]
+    },
+    {
+        "id": "d895bbc.65eb748",
+        "type": "inject",
+        "z": "897fdb2a.109f68",
+        "name": "",
+        "topic": "color",
+        "payload": "{\"h\":0,\"s\":0,\"v\":1}",
+        "payloadType": "json",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 168,
+        "y": 1326,
+        "wires": [
+            [
+                "6dc70796.b65778"
+            ]
+        ]
+    },
+    {
+        "id": "cb876a7a.b34738",
+        "type": "inject",
+        "z": "897fdb2a.109f68",
+        "name": "",
+        "topic": "color",
+        "payload": "{\"h\":90,\"s\":0,\"v\":1}",
+        "payloadType": "json",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 168,
+        "y": 1360,
+        "wires": [
+            [
+                "6dc70796.b65778"
+            ]
+        ]
+    },
+    {
+        "id": "76bcd56c.96218c",
+        "type": "inject",
+        "z": "897fdb2a.109f68",
+        "name": "",
+        "topic": "enum",
+        "payload": "Option 1",
+        "payloadType": "str",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 148,
+        "y": 1462,
+        "wires": [
+            [
+                "6dc70796.b65778"
+            ]
+        ]
+    },
+    {
+        "id": "a78862f2.37191",
+        "type": "inject",
+        "z": "897fdb2a.109f68",
+        "name": "",
+        "topic": "enum",
+        "payload": "Option 2",
+        "payloadType": "str",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 148,
+        "y": 1496,
+        "wires": [
+            [
+                "6dc70796.b65778"
+            ]
+        ]
+    },
+    {
+        "id": "b974c4c9.7635e8",
+        "type": "inject",
+        "z": "897fdb2a.109f68",
+        "name": "",
+        "topic": "enum",
+        "payload": "Option 3",
+        "payloadType": "str",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 148,
+        "y": 1530,
+        "wires": [
+            [
+                "6dc70796.b65778"
+            ]
+        ]
+    },
+    {
+        "id": "bfe6e2a.f99012",
+        "type": "inject",
+        "z": "897fdb2a.109f68",
+        "name": "",
+        "topic": "enum",
+        "payload": "Option 4",
+        "payloadType": "str",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 148,
+        "y": 1564,
+        "wires": [
+            [
+                "6dc70796.b65778"
+            ]
+        ]
+    },
+    {
+        "id": "2aa95e08.e613b2",
+        "type": "inject",
+        "z": "897fdb2a.109f68",
+        "name": "",
+        "topic": "color",
+        "payload": "270,50,50",
+        "payloadType": "str",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 148,
+        "y": 1394,
+        "wires": [
+            [
+                "6dc70796.b65778"
+            ]
+        ]
+    },
+    {
+        "id": "e6a23911.f60378",
+        "type": "homie-convention-broker-config",
+        "z": "",
+        "mqtt-host": "AH-BERLIN-0148",
+        "mqtt-port": "8883",
+        "tls": "224962c.03df19e",
+        "usetls": true,
+        "name": "localhost@hp-spectre-360",
+        "homieName": "Node-RED",
+        "homieRoot": "homie",
+        "storeGlobal": true
+    },
+    {
+        "id": "224962c.03df19e",
+        "type": "tls-config",
+        "z": "",
+        "name": "Localhost ca.crt",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "ca.crt",
+        "servername": "ah-berlin-0148",
+        "verifyservercert": false
+    }
+]

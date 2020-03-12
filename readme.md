@@ -2,7 +2,7 @@
 
 ![logo](./nodes/homie-device/icons/mqtt_homie.jpg)
 
-## introduction
+# introduction
 
 >The Homie convention defines a standardized way of how IoT devices and services announce themselves and their data on the MQTT broker.
 >
@@ -13,7 +13,6 @@ Details of the homie convention are available here [https://homieiot.github.io/]
 This node is tested with version **4.0.0** of the Homie convention but should work with version 3.0.x too.
 
 ## **important:** mqtt messages have to be stored as retained messages on the mqtt broker
-
 [please check here](https://github.com/Christian-Me/node-red-contrib-home/tree/master/Mosquitto) how to configure mosquitto if necessary
 
 **BETA version! Please raise an issue on [github](https://github.com/Christian-Me/node-red-contrib-homie-convention/issues) if you run into any problems. Every support counts.**
@@ -22,35 +21,49 @@ This node is tested with version **4.0.0** of the Homie convention but should wo
 **Thank you in advance.**
 
 
-## latest update
+# latest update
 
 complete changelog see end of file
 
-* 0.1.2 beta: **home state node** emits full msg.state object for `msg.payload=deviceId` or `sg.payload="[any]"`. If `msg.payload` is empty the node config is used. `msg.broker` can be specified in a multi broker environment with duplicate device names.
+* 0.1.3 beat: **homie node** New node to enable Node-RED to act like a homie device. Node-RED can advertize nodes and properties to the outside to enable other devices to be informed about values of Node-RED or send commands.
+* 0.1.2 beta: **homie state node** emits full msg.state object for `msg.payload=deviceId` or `sg.payload="[any]"`. If `msg.payload` is empty the node config is used. `msg.broker` can be specified in a multi broker environment with duplicate device names.
 * 0.1.0 beta: several bug fixes. **New homie state node.**
 * 0.0.7 bug fix: message occasionally carry the wrong topic (when using `msg.topic=msg.label`)
 
-## concept
+# concept
 
 Announcements for `devices`/`nodes`/`properties` are stored on the mqtt broker as retained messages or sent "live". The homie-convention node collects the retained messages and makes it easy to select the property of interest. 
 Additional attributes can be translated to useful messages to configure dashboard nodes.
 The node sends messages received on the input to the configured property. It also tries to convert data types if possible.
 
-## nodes
+# nodes
 
-### homie-device node (BETA)
+## homie-broker-config node (BETA)
+
+Config node to define the connection between Node-RED and the MQTT-Broker. Beside the standard MQTT-Broker the basic parameters to announce Node-RED as a homie device like `rood topic`, `$name` friendly name and `device ID` are specified here
+
+[you can find detailed information here](homie-device-config/readme.md)
+
+## homie-device node (BETA)
 
 ![homie-device node](./screenshots/homie-device-node.png)
 
-Main node for receiving updates form devices or sending `/set` commands to properties
+Main node for receiving updates form devices or sending `/set` commands to properties.
+Auto detect and features to control dashboard widgets are included. For detailed information you find below. 
+[you can find detailed information here](homie-device/readme.md)
 
-### homie-state node (early BETA)
+## homie-state node (early BETA)
 
 ![homie-state node](./screenshots/homie-state-node.png)
 
 Node to receive configuration data from homie devices and regular status updates
+[you can find detailed information here](homie-node/readme.md)
 
-## configuration
+## homie-node node (early BETA)
+
+[you can find detailed information here](homie-node/readme.md)
+
+# homie device configuration
 
 The nodes uses one configuration node to define the mqtt broker to be used
 
@@ -58,6 +71,7 @@ parameter | description
 ----------|------------
 Name | Optionally specify a name
 Broker | Select the mqtt broker where your device is sending messages to.
+
 
 ## broker configuration
 
@@ -69,6 +83,9 @@ parameter | description
 ----------|------------
 MQTT host | IP address of the broker
 MQTT port | Port number
+Username | username to access the broker
+Password | password to get access
+Encryption | set SSL/TLS encryption if available 
 root topic | root topic, should not be changed
 Homie name | name to identify this instance of Node-RED
 Device name | name of this device / configuration

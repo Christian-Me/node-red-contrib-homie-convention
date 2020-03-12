@@ -1,0 +1,267 @@
+<script type="text/html text/x-red" data-template-name="homie-convention-node">
+<!--
+
+  <style type="text/css">
+    .btn-group {
+      width: 70%;
+    }
+    .multiselect {
+      width: 100%;
+    }
+    .form-row input.multiselect-search {
+      width: 100%;
+    }
+    .multiselect-clear-filter {
+        display: none;
+    }
+    .dropdown-menu {
+        width: 100% !important;
+      }
+      .multiselect-container input[type="checkbox"] {
+        display: none;
+    }
+    .multiselect-container > li > a > label.radio {
+      margin: 5px;
+      width: 90%;
+      height: 100%;
+      cursor: pointer;
+        font-weight: 400;
+        padding: 3px 20px 3px 20px;
+      }
+      .multiselect-container label.radio input[type="radio"] {
+        display: none;
+    }
+  </style>
+  
+  <link rel="stylesheet" href="static/css/bootstrap-multiselect.css" type="text/css" />
+    
+  -->
+    <div class="form-row">
+      <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+      <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+      <label for="node-input-broker"><i class="fa fa-exchange"></i> Broker</label>
+      <input id="node-input-broker">
+    </div>
+
+    <div class="form-row">
+      <label for="node-input-nodeId"><i class="fa fa-crosshairs"></i> node Id</label>
+      <input type="text" id="node-input-nodeId" placeholder="nodeId">
+    </div>
+    <div class="form-row">
+      <label for="node-input-nodeName"><i class="fa fa-tag"></i> $name</label>
+      <input type="text" id="node-input-nodeName" placeholder="friendly name">
+    </div>
+    <div class="form-row">
+      <label for="node-input-nodeType"><i class="fa fa-gears"></i> $type</label>
+      <input type="text" id="node-input-nodeType" placeholder="friendly name">
+    </div>
+        
+    <div class="form-row">
+      <label><i class="fa fa-info-circle"></i> Additional</label>
+      <input type="checkbox" id="node-input-passMsg" style="display: inline-block; width: auto; vertical-align: top;">
+      <label for="node-input-passMsg" style="width: 70%;">&nbsp;<i class="fa fa-arrow-right"></i>&nbsp;pass messages through (via MQTT broker)</label>
+    </div>
+    <div class="form-row">
+      <label>&nbsp;</label>
+      <input type="checkbox" id="node-input-autoConfirm" style="display: inline-block; width: auto; vertical-align: top;">
+      <label for="node-input-autoConfirm" style="width: 70%;">&nbsp;<i class="fa fa-check-square"></i>&nbsp;auto confirm <code>/set</code> messages</label>
+    </div>
+    <div class="form-row">
+      <label>&nbsp;</label>
+      <input type="checkbox" id="node-input-infoHomie" style="display: inline-block; width: auto; vertical-align: top;">
+      <label for="node-input-infoHomie" style="width: 70%;">&nbsp;<i class="fa fa-tags"></i>&nbsp;include <code>msg.homie</code></label>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-infoError" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-infoError" style="width: 70%;">&nbsp;<i class="fa fa-exclamation-triangle"></i>&nbsp;include <code>msg.error</code></label>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-exposeHomieNodes" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-exposeHomieNodes" style="width: 70%;">&nbsp;<i class="fa fa-database"></i>&nbsp;expose <code>homeNodes</code> in global context</label>
+    </div>
+
+    <div class="form-row" style="margin-bottom: 0px;">
+      <label for="node-input-homieNodeConfig" style="width: 100% !important;">
+        <i class="fa fa-wrench"></i>
+        homie node configuration</label>
+      <input type="hidden" id="node-input-homieNodeConfig">
+    </div>
+    <div class="form-row node-text-editor-row">
+        <div style="height: 250px; min-height:150px;" class="node-text-editor" id="node-input-homieNodeConfig-editor"></div>
+    </div>
+
+</script>
+
+<script type="text/javascript">
+
+  var treeList;
+
+  // remember last selection to prevent unnecessary Updates
+  var lastDeviceID = '';
+
+  // register homie-convention-node
+
+  RED.nodes.registerType('homie-convention-node', {
+    category: 'Homie convention',
+    paletteLabel: 'Homie node',
+    label: 'Homie node',
+    color: '#e74c3c',
+    defaults: {
+      broker: {value: '', type: 'homie-convention-broker-config', required: true},
+      name: {value: ''},
+      nodeId: {value: '',required: true},
+      nodeName: {value: '',required: true},
+      nodeType: {value: '',required: true},
+      passMsg: {value: false},
+      autoConfirm: {value: false},
+      infoHomie: {value: false},
+      infoError: {value: false},
+      exposeHomieNodes: {value: false},
+      homieNodeConfig: {
+        value: "{}",
+        validate: function(value) {
+          if (value.length === 0) return true;
+          try {
+            JSON.parse(value);
+          } catch (e) {
+            return false;
+          }
+          return value[0] === "{";
+        }
+      }
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "homie-logo.png",
+    label: function() {
+      this.topic= this.stateDeviceID;
+      return this.name||this.topic||"homie node";
+    },
+    oneditprepare: function() {
+      let node = this;
+      node.editor = RED.editor.createEditor({
+          id: "node-input-homieNodeConfig-editor",
+          mode: "ace/mode/json",
+          value: $("#node-input-homieNodeConfig").val()
+      });
+    },
+    oneditsave: function() {
+      let node = this;
+      $("#node-input-homieNodeConfig").val(node.editor.getValue());
+      node.editor.destroy();
+      delete node.editor;
+    },
+    oneditcancel: function() {
+        this.editor.destroy();
+        delete this.editor;
+    },
+    oneditresize: function(size) {
+        const rows = $("#dialog-form>div:not(.node-text-editor-row)");
+        let height = $("#dialog-form").height();
+        for (let i = 0; i < rows.size(); i++) {
+            height -= $(rows[i]).outerHeight(true);
+        }
+        const editorRow = $("#dialog-form>div.node-text-editor-row");
+        height -=
+            parseInt(editorRow.css("marginTop")) +
+            parseInt(editorRow.css("marginBottom"));
+        $(".node-text-editor").css("height", height + "px");
+        this.editor.resize();
+    }
+  });
+</script>
+
+<script type="text/x-red" data-help-name="homie-convention-node">
+  <p> <img src="https://homieiot.github.io/img/mqtt_homie.jpg"></img>
+  </p>
+  <p>
+    By using the homie convention Node-RED can use the broker as a state storage and api for it's own services.
+    send a homie formatted message <code>msg.homie</code> to this node. Depending on the contend the node will:
+    <ul>
+      <li>initialize the node (if new)</li>
+      <li>initialize a property (if new)</li>
+      <li>send (new) state of the property <b>or</b></li>
+      <li>send a <b>/set</b> topic to that property</li>
+    </ul>
+    Use the homie device node to listen for <b>/set</b> topic of the Node-RED device
+    Detailed information you find at <a href="https://homieiot.github.io">
+    Due to the mqtt specification the broker will echo back all new topics to ALL subscribers including the <b>sender</b>!
+  </p>
+  <p></p>
+	<b>Configuration</b>
+    <ul>
+      <li><b>Name :</b>  specify a name</li>
+      <li><b>Broker :</b> Select the mqtt broker where your device is sending messages to.</li>
+    </ul>
+      
+    <h3>basic configuration</h3>
+    <ul>
+      <li><b>Node Id :</b>  unique Id of this homie node</li>
+      <li><b>$name :</b>  human readable name of this homie node</li>
+      <li><b>$type :</b>  type of this homie node</li>
+    </ul>
+    The properties of a node must be configured by <code>msg.homie</code> containing a json configuration object
+
+  <h3>extra configuration</h3>
+    <p>
+        Additional information like timing and errors can be added to the msg object
+    </p>
+    <ul>
+        <li><b>pass message :</b> Select to pass messages form input to output (via MQTT broker).</li>
+        <li><b>auto confirm /set message :</b> Select to automatically confirm /set messages.</li>
+        <li><b>msg.homie :</b> Select to receive homie property definition.</li>
+        <li><b>msg.error :</b> Select to receive error information.</li>
+        <li><b>global context :</b> Select expose node in global context.</li>
+   	 </ul>
+  <p></p>
+  
+  <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>homie
+            <span class="property-type">object</span>
+        </dt>
+        <dd>full or partial homie object</dd>
+    </dl>
+    <dl class="message-properties">
+      <dt>payload
+          <span class="property-type">string</span>
+      </dt>
+      <dd> <i>optional</i> command to perform <b>propertyUpdate</b> if empty</dd>
+    </dl>
+
+ <h3>Outputs</h3>
+     <ol class="node-ports">
+         <li>Standard output
+             <dl class="message-properties">
+                 <dt>msg.homie <span class="property-type">object</span></dt>
+                 <dd>actual full homie object of this node</dd>
+
+                 <dt>msg.topic <span class="property-type">string</span></dt>
+                 <dd>mqtt topic of the updated property</dd>
+
+                 <dt>msg.payload <span class="property-type">string</span></dt>
+                 <dd>mqtt payload of the updated property</dd>
+
+                 <dt>msg.system <span class="property-type">object</span></dt>
+                 <dd>additional device information</dd>
+             </dl>
+         </li>
+     </ol>
+
+  <h3>Details</h3>
+    <p>
+        The Homie convention defines a standardized way of how IoT devices and services announce themselves and their data on the MQTT broker.<br>
+        It is thereby a crucial aspect on top of the MQTT protocol for <i>automatic discovery, configuration</i> and <i>usage</i> of devices and services.<br>
+        Form more Information head over to <a href="https://homieiot.github.io/">https://homieiot.github.io/</a>
+    </p>  
+
+  <h3>References</h3>
+    <ul>
+        <li><a href="https://homieiot.github.io/">Homie Convention</a> - full specification of the Homie Convention</li>
+        <li><a href="https://github.com/Christian-Me/node-red-contrib-homie-convention">GitHub</a> - the nodes github repository</li>
+    </ul>
+</script>

@@ -6,6 +6,21 @@ module.exports = function (RED) {
   function homieDeviceConfig (config) {
     RED.nodes.createNode(this, config);
     var node = this;
+    this.homieNodeDef = {
+      "nodeId": {"type":"string", "required":true},
+      "$name": {"type":"string", "required":true},
+      "$type": {"type":"string", "required":true},
+      "$properties": {"type":"object", "required":false},
+      "_properties": {
+        "propertyId":{"type":"string", "required":true},
+        "$name":{"type":"string", "required":true},
+        "$datatype":{"type":"enum", "required":true,"default":"string", "format":"string,integer,float,boolean,enum,color"},
+        "$format":{"type":"string", "required":false},
+        "$settable":{"type":"boolean", "required":false, "default":false},
+        "$retained":{"type":"boolean", "required":false, "default":true},
+        "$unit":{"type":"string", "required":false, "default":""}
+      }
+    };
     this.homieExDef = {
       "$state":{"icon":"fa fa-bolt","type":"enum","unit":"","required":true,"default":"lost","format":
         {
@@ -140,7 +155,7 @@ module.exports = function (RED) {
       node.addToLog("info","MQTT connected to "+ node.brokerurl+ " as user "+ (node.options.username) ? (node.options.username) : "anonymous");
 
       node.setState('connected');
-
+      var memoryUsage=process.memoryUsage();
       node.client.publish(node.baseTopic + '/$state', 'ready', { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$homie', '4.0.0', { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$name', node.name, { qos: 2, retain: true });
@@ -150,7 +165,7 @@ module.exports = function (RED) {
       node.client.publish(node.baseTopic + '/$extensions','org.homie.legacy-stats:0.1.1:[4.x],org.homie.legacy-firmware:0.1.1:[4.x]', { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$stats/uptime', os.uptime().toString(), { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$stats/cpuload', os.loadavg()[1].toString(), { qos: 2, retain: true }); // 5min average
-      node.client.publish(node.baseTopic + '/$stats/freeheap', os.freemem().toString(), { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$stats/freeheap', (memoryUsage.heapTotal-memoryUsage.heapUsed).toString(), { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$fw/name', 'Node-RED ('+os.platform()+' '+os.release()+')', { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$fw/version', RED.version(), { qos: 2, retain: true });
 
@@ -520,24 +535,66 @@ module.exports = function (RED) {
       }
     }
 
-    this.storeMessage = function(property, message, extraPropertyId) {
-      var messageString = message.toString();
-      var result = false;
-      property.error = '';
-      property.status = 'ok';
-        
-      // store original Message
-      property.message = messageString;
-      property.payload = messageString;
-      if (extraPropertyId) { // save extra messages i.e. ../set topic
-        if (!property[extraPropertyId]) property[extraPropertyId]=messageString;
+    this.formatValueToString = function (datatype,format,value) {
+      let success = false;
+      let resultString;
+      switch (datatype) {
+        case 'integer': // format integer Value
+          resultString=Math.floor(Number(value)).toString();
+          success = true;
+          break;
+        case 'float': // format float value
+          resultString=Number(value).toFixed(2).toString();
+          success = true;
+          break;
+        case 'string': // format string value
+        case 'boolean': // format boolean value
+          resultString=value.toString;
+          success = true;
+          break;
+        case 'enum': // format enum and get number in enum list
+          if (format!==undefined) {
+            var enumList = format.split(',');
+            if (typeof value === "number" && enumList.length>value) {
+              resultString=enumList[value];
+              success = true;
+            } 
+            if (enumList.includes(value)) {
+              resultString=value;
+              success = true;
+            }
+          }
+          break;
+        case 'color': // format color
+          switch (format) {
+            case 'rgb': // rgb Color
+              if (value.hasOwnProperty('r') && value.hasOwnProperty('g') && value.hasOwnProperty('b')) {
+                resultString=Math.floor(value.r)+','+Math.floor(value.g)+','+Math.floor(value.b);
+                success = true;
+              } else if (typeof value === "string" && value.split(',').length===3) {
+                resultString=value;
+                success = true;
+              }
+              break;
+            case 'hsv': // hsv Color
+              if (value.hasOwnProperty('h') && value.hasOwnProperty('s') && value.hasOwnProperty('v')) {
+                resultString=Math.floor(value.h)+","+Math.floor(value.s*100)+","+Math.floor(value.v*100);
+                success = true;
+              } else if (typeof value === "string" && value.split(',').length===3) {
+                resultString=value;
+                success = true;
+              }
+              break;
+          }
+          break;
       }
-        
-      // Format Value according to $datatype and $format
-      switch (property.$datatype) {
-//        case undefined :  // datatype not specified
-//            property.error = '$datatype not specified. Value will be undefined!'
-//            break;
+      if (!success) node.addToLog("error","formatValueToString failed!");
+      return resultString;
+    }
+
+    this.formatStringToValue = function (datatype,format,property,message) {
+      let result = false;
+      switch (datatype) {
         case 'integer': // format integer Value
             property.valueBefore = property.value;
             property.value = Math.floor(Number(message));
@@ -564,34 +621,31 @@ module.exports = function (RED) {
             break;
         case 'string': // format string value
             property.valueBefore = property.value;
-            property.value=messageString;
+            property.value=message;
             result = true;
             break;
         case 'enum': // format enum and get number in enum list
-            if (property.$format!==undefined) {
-              var enumList = property.$format.split(',');
-              for (var i=0; i<enumList.length; i++) {
-                if (messageString==enumList[i]) {
+            if (format!==undefined) {
+              var enumList = format.split(',');
+              if (enumList.includes(message)) {
                   property.valueBefore = property.value;
-                  property.value = i;
+                  property.value = enumList.indexOf(message);
                   result = true;
                   break;
-                }
-              }
-              if (i>=enumList.length) property.error = 'item: '+messageString+' not found in enum $format: '+property.$format;
+                } else property.error = 'item: '+message+' not found in enum $format: '+format;
             } else {
               property.error = '$format expected to provide comma separated list of valid payloads';
             }
             break;
         case 'color': // format color
-            switch (property.$format) {
+            switch (format) {
               case undefined: // format not specified
                   property.error = '$format expected to provide color space information (RGB or HSV)';
                   break;
               case 'rgb': // rgb Color
-                  var colors = messageString.split(',');
+                  var colors = message.split(',');
                   if (colors.length!=3) {
-                    property.error = 'color value expected as 3 values r,g,b received: '+messageString;
+                    property.error = 'color value expected as 3 values r,g,b received: '+message;
                     break;
                   } else {
                     property.valueBefore = property.value;
@@ -603,9 +657,9 @@ module.exports = function (RED) {
                   }
                   break;
               case 'hsv': // hsv Color
-                  var colors = messageString.split(',');
+                  var colors = message.split(',');
                   if (colors.length!=3) {
-                    property.error = 'color value expected as 3 values h,s,v received: '+messageString;
+                    property.error = 'color value expected as 3 values h,s,v received: '+message;
                   } else {
                     property.valueBefore = property.value;
                     property.value = {};
@@ -618,22 +672,41 @@ module.exports = function (RED) {
                   break;
                     
               // error
-              default: property.error = '$format invalid. Expected rgb or hsv received: '+property.$format;
+              default: property.error = '$format invalid. Expected rgb or hsv received: '+format;
             }
             break;
+        }
+      return result;
+    }
 
-        default: // $datatype undefined or invalid
-            if (node.homieExDef.hasOwnProperty(property.nodeId)) {
-              if (node.homieExDef[property.nodeId].hasOwnProperty("type")) {
-                property.valueBefore = property.value;
-                property.value = node.formatProperty(messageString,node.homieExDef[property.nodeId].type);
-              }
-            } else {
-              property.valueBefore = property.value;
-              property.value = messageString; // emit message anyway 
-              property.error = '$datatype undefined or invalid: '+property.$datatype;
-              property.status = 'warning';
-            }
+    this.storeMessage = function(property, message, extraPropertyId) {
+      var messageString = message.toString();
+      var result = false;
+      property.error = '';
+      property.status = 'ok';
+        
+      // store original Message
+      property.message = messageString;
+      property.payload = messageString;
+      if (extraPropertyId) { // save extra messages i.e. ../set topic
+        if (!property[extraPropertyId]) property[extraPropertyId]=messageString;
+      }
+        
+      // Format Value according to $datatype and $format
+      result = node.formatStringToValue(property.$datatype,property.$format,property,messageString);
+
+      if (!result) {
+        if (node.homieExDef.hasOwnProperty(property.nodeId)) {
+          if (node.homieExDef[property.nodeId].hasOwnProperty("type")) {
+            property.valueBefore = property.value;
+            property.value = node.formatProperty(messageString,node.homieExDef[property.nodeId].type);
+          }
+        } else {
+          property.valueBefore = property.value;
+          property.value = messageString; // emit message anyway 
+          property.error = '$datatype undefined or invalid: '+property.$datatype;
+          property.status = 'warning';
+        }
       }
 
       // Set Timing Data
@@ -728,6 +801,9 @@ module.exports = function (RED) {
     }
 
     this.messageArrived = function (topic, message) {
+      var messageString = message.toString();
+      if (messageString==="") return; // nothing to do (payload===undefined);
+    
       // special mqtt broker values (treat $sys messages from broker as homie device)
       switch (topic){
         case '$SYS/broker/uptime':
@@ -743,7 +819,6 @@ module.exports = function (RED) {
       var nodeId = splitted[2] || '';
       var propertyId = splitted[3] || '';
       var property = splitted[4] || '';
-      var messageString = message.toString();
 
 
       var stateMsg = {
@@ -757,6 +832,10 @@ module.exports = function (RED) {
 
       if (!node.addHomieValue(topic,message)) {
         return false;
+      }
+
+      if (deviceName===node.homieName && !topic.includes('$')) {
+        node.emit('redHomieMessage', {"topic":topic,"payload":messageString});
       }
 
       switch (splitted.length) {
