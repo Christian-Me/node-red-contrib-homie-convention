@@ -1,5 +1,6 @@
 # homie node
 Node-RED can expose it's services to the outside world by using the homie-node. For every *homie node* one node is placed in the editor. By sending a message to this node the properties on the mqtt broker can be updated. If an update on the `property/set` topic a message is sent to the output.
+The homie-device node can be used as a counterpart to receive the updates. Through this node the outside world can read property updates and send commands to Node-RED.
 
 # configuration
 ## basic configuration
@@ -63,7 +64,7 @@ Here is an example: `msg=`
 ## send a status update to the mqtt broker
 
 parameter | description
-- | -
+--------- | -----------
 **msg.topic** | the topic of this parameter. it can be either the full homie path `homie/deviceId/nodeId/parameterId` or a part of it. The `paramterId` is required
 **msg.payload** | the payload to be sent to the broker
 
