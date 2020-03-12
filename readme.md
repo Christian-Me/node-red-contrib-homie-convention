@@ -50,18 +50,21 @@ Config node to define the connection between Node-RED and the MQTT-Broker. Besid
 
 Main node for receiving updates form devices or sending `/set` commands to properties.
 Auto detect and features to control dashboard widgets are included. For detailed information you find below. 
-[you can find detailed information here](homie-device/readme.md)
+[you can find detailed information here](nodes/homie-device/readme.md)
 
 ## homie-state node (early BETA)
 
 ![homie-state node](./screenshots/homie-state-node.png)
 
 Node to receive configuration data from homie devices and regular status updates
-[you can find detailed information here](homie-node/readme.md)
+[you can find detailed information here](nodes/homie-node/readme.md)
 
 ## homie-node node (early BETA)
 
-[you can find detailed information here](homie-node/readme.md)
+![homie-state node](./screenshots/homie-node-node.png)
+
+Node for Node-RED offering services as a homie device
+[you can find detailed information here](nodes/homie-node/readme.md)
 
 # homie device configuration
 
