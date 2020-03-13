@@ -124,18 +124,18 @@ module.exports = function (RED) {
       node.broker.client.publish(topic, property, { qos: 2, retain: retained });
     }
 
-    this.updateHomieValue = function (homieNode,propertyId,value) {
+    this.updateHomieValue = function (homieNode,nodeId,propertyId,value) {
       var success = true;
       if (homieNode.hasOwnProperty(propertyId)) {
         let homieProperty=homieNode[propertyId];
         if (value===undefined) { // delete topic
-          node.mqttPublish(node.broker.baseTopic + '/' + node.nodeId + '/' + propertyId,undefined);
+          node.mqttPublish(node.broker.baseTopic + '/' + nodeId + '/' + propertyId,undefined);
         } else if (homieProperty.hasOwnProperty("value")) {
           let currentValueString = (homieProperty.value!=null) ? node.broker.formatValueToString(homieProperty.$datatype,homieProperty.$format,homieProperty.value) : "";
           let newValueString = node.broker.formatValueToString(homieProperty.$datatype,homieProperty.$format,value);
           if (currentValueString!=newValueString) { // only if new or updated
             if (!(homieProperty.$datatype==="enum" && newValueString==="")) {
-              node.mqttPublish(node.broker.baseTopic + '/' + node.nodeId + '/' + propertyId,newValueString,homieProperty.$retained);
+              node.mqttPublish(node.broker.baseTopic + '/' + nodeId + '/' + propertyId,newValueString,homieProperty.$retained);
               homieProperty.valuePredicted=value;
             } else success = false;
           }
@@ -144,11 +144,11 @@ module.exports = function (RED) {
       return success;
     }
 
-    this.updateHomieAttribute = function (propertyId,homieNode,property,key,def) {
+    this.updateHomieAttribute = function (nodeId,propertyId,homieNode,property,key,def) {
       if (!homieNode.hasOwnProperty(key) || homieNode[key]!==property) { // Attribute new of differ from previous
         if (node.validateProperty(property,def)) {
           homieNode[key]=property;
-          node.mqttPublish(node.broker.baseTopic + '/' + node.nodeId + ((propertyId!=="") ? '/' + propertyId : '') + '/' + key,property);
+          node.mqttPublish(node.broker.baseTopic + '/' + nodeId + ((propertyId!=="") ? '/' + propertyId : '') + '/' + key,property);
         } else {
           node.errorMessages.push({source:"updateHomieAttribute",message:"property misformed ("+key+")",level:"warn"});
         }
@@ -166,7 +166,7 @@ module.exports = function (RED) {
       if (typeof property === 'object' && !Array.isArray(property)){
         Object.keys(property).forEach((key) => {
           if (def.hasOwnProperty(key)) {
-            node.updateHomieAttribute(propertyId,homieNode[propertyId],property[key],key,def[key]);
+            node.updateHomieAttribute(nodeId,propertyId,homieNode[propertyId],property[key],key,def[key]);
           } else node.errorMessages.push({source:"updateHomieProperty",message:"unknown key defined ("+key+")",level:"warn"});
         });
       } else {
@@ -199,7 +199,7 @@ module.exports = function (RED) {
       result=Object.keys(msg.homie).forEach((key) => {
         if (homieNodeDef.hasOwnProperty(key)) {
             if (key!=='$properties') {
-              result = node.updateHomieAttribute("",homieNode,msg.homie[key],key,homieNodeDef[key]);
+              result = node.updateHomieAttribute(nodeId,"",homieNode,msg.homie[key],key,homieNodeDef[key]);
             } else {
               Object.keys(msg.homie[key]).forEach((property) => {
                 result = node.updateHomieProperty(nodeId,homieNode,property,msg.homie[key],homieNodeDef._properties);
@@ -246,7 +246,7 @@ module.exports = function (RED) {
           var propertyId = topicSplitted[topicSplitted.length-1];
           if (homieNodes!==undefined && homieNodes.hasOwnProperty(nodeId)) {
             var homieNode=homieNodes[nodeId];
-            success = node.updateHomieValue(homieNode,propertyId,msg.payload);
+            success = node.updateHomieValue(homieNode,nodeId,propertyId,msg.payload);
             if (success) {
               node.status({fill: 'green', shape: 'dot', text: propertyId+'='+((typeof msg.payload === "object") ? JSON.stringify(msg.payload) : msg.payload )});
             } else {
@@ -266,10 +266,10 @@ module.exports = function (RED) {
       if (node && node.broker && node.broker.hasOwnProperty("homieNodes")) {
         var originalPayload = msg.payload;
         var topicSplitted=msg.topic.split('/');
-        if (topicSplitted.length>3 && topicSplitted[2]==node.nodeId) {
+        if (topicSplitted.length>3 && (node.nodeId=='[any]' || topicSplitted[2]==node.nodeId)) {
           var homieNodes = node.broker.homieNodes[node.broker.brokerurl];
           var propertyId = topicSplitted[3];
-          var nodeId = node.nodeId;
+          var nodeId = topicSplitted[2];
           if (homieNodes!==undefined && homieNodes.hasOwnProperty(nodeId) && homieNodes[nodeId].hasOwnProperty(propertyId)) {
             var homieProperty = homieNodes[nodeId][propertyId];
             // this node ONLY accepts messages on the /set topic! $settable must be true!
@@ -277,7 +277,7 @@ module.exports = function (RED) {
               msg.property = {value:homieProperty.value};
               result = node.broker.formatStringToValue(homieProperty.$datatype,homieProperty.$format,msg.property,msg.payload);
               msg.payload=msg.property.value;
-              if (node.autoConfirm && topicSplitted[4]=='set') node.updateHomieValue(homieNodes[nodeId],propertyId,originalPayload);
+              if (node.autoConfirm && topicSplitted[4]=='set') node.updateHomieValue(homieNodes[nodeId],nodeId,propertyId,originalPayload);
               homieProperty.value=msg.property.value;
               if (node.infoHomie) msg.homie=RED.util.cloneMessage(homieProperty);
               if (node.passMsg || topicSplitted[4]=='set') node.send([msg]);
@@ -301,7 +301,7 @@ module.exports = function (RED) {
 
               if (topicSplitted[4]=='set' && !homieProperty.$settable) {
                 node.addToLog("warn","/set message not accepted because property $settable=false!");
-                node.mqttPublish(node.broker.baseTopic + '/' + node.nodeId + '/' + propertyId + '/set',undefined);
+                node.mqttPublish(node.broker.baseTopic + '/' + nodeId + '/' + propertyId + '/set',undefined);
                 node.status({fill: 'yellow', shape: 'dot', text: propertyId+'/set but NOT $settable'});
               } else {
                 // reject all property changes form outside except the first time
@@ -310,7 +310,7 @@ module.exports = function (RED) {
                       node.broker.formatValueToString(homieProperty.$datatype,homieProperty.$format,homieProperty.valuePredicted)!=originalPayload) {
                     node.status({fill: 'yellow', shape: 'dot', text: propertyId+' changed externally! rejected'});
                     node.addToLog("warn",nodeId+'/'+propertyId+'='+originalPayload+" update form outside detected. Original value restored! ("+homieProperty.value.toString()+")");
-                    node.mqttPublish(node.broker.baseTopic + '/' + node.nodeId + '/' + propertyId,
+                    node.mqttPublish(node.broker.baseTopic + '/' + nodeId + '/' + propertyId,
                       node.broker.formatValueToString(homieProperty.$datatype,homieProperty.$format,homieProperty.value));                  
                   } else {
                     updateProperty();
@@ -323,7 +323,7 @@ module.exports = function (RED) {
           }
         } else {
           // node.status({fill: 'red', shape: 'dot', text: 'node not defined correctly'});
-          node.addToLog("error","node not defined correctly homieNodes="+node.broker.hasOwnProperty(homieNodes));
+          // node.addToLog("error","node not defined correctly homieNodes="+node.broker.hasOwnProperty(homieNodes));
         }
       }
     });

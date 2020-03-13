@@ -24,7 +24,7 @@ expose homieNodes | expose the `homieNodes` object in global context | optional
 ## parameter configuration
 
 The json editor can be used to define the properties of a homie node. 
-It is expected that the configuration can be done dynamically through the flow. Therefor a `msg.homie` message can be sent to the node on start or included with the first message. Both configurations **merge** so they can be used simultaneous
+It is expected that the configuration can be done dynamically through the flow. Therefor a `msg.homie` message can be sent to the node on start or included with the first message. Both configurations **merge** so they can be used simultaneous or add new nodes and properties on the fly.
 
 Here is an example: `msg=`
 ```json
@@ -59,6 +59,9 @@ Here is an example: `msg=`
     }
 }
 ```
+### advanced configuration
+The nodeId defined in the configuration can be overridden by sending `msg.nodeId` with the `msg.homie` message. Do access individual nodes the `msg.topic` must contain `nodeId/propertyId`. To receive the output of other nodes than specified in the configuration you can either use the home-device node or define **[any]** as nodeId.
+
 # usage
 
 ## send a status update to the mqtt broker
