@@ -549,7 +549,7 @@ module.exports = function (RED) {
           break;
         case 'string': // format string value
         case 'boolean': // format boolean value
-          resultString=value.toString;
+          resultString=value.toString();
           success = true;
           break;
         case 'enum': // format enum and get number in enum list

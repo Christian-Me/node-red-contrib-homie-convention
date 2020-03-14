@@ -188,7 +188,7 @@
       <li>send a <b>/set</b> topic to that property</li>
     </ul>
     Use the homie device node to listen for <b>/set</b> topic of the Node-RED device
-    Detailed information you find at <a href="https://homieiot.github.io">
+    Detailed information you find at <a href="https://homieiot.github.io">https://homieiot.github.io</a>
     Due to the mqtt specification the broker will echo back all new topics to ALL subscribers including the <b>sender</b>!
   </p>
   <p></p>
@@ -225,6 +225,18 @@
             <span class="property-type">object</span>
         </dt>
         <dd>full or partial homie object</dd>
+    </dl>
+    <dl class="message-properties">
+      <dt>nodeId <i>optional</i>
+          <span class="property-type">object</span>
+      </dt>
+      <dd>optional nodeId to access individual nodes</dd>
+    </dl>
+    <dl class="message-properties">
+      <dt>topic
+          <span class="property-type">string</span>
+      </dt>
+      <dd> the topic of this parameter. it can be either the full homie path <code>homie/deviceId/nodeId/parameterId</code> or a part of it. The <code>paramterId</code> is required</dd>
     </dl>
     <dl class="message-properties">
       <dt>payload

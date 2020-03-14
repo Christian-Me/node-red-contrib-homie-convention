@@ -261,7 +261,7 @@ module.exports = function (RED) {
     // handle message for mqtt broker to Node-REd (as device)
     this.broker.on('redHomieMessage', function (msg) {
       if (msg.hasOwnProperty("property") || msg.payload==="") return;
-      if (!node.hasOwnProperty("id")) return;
+      if (!node || node===null || !node.hasOwnProperty("id")) return;
       node = RED.nodes.getNode(node.id);
       if (node && node.broker && node.broker.hasOwnProperty("homieNodes")) {
         var originalPayload = msg.payload;
