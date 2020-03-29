@@ -102,6 +102,10 @@ module.exports = function (RED) {
       this.username = this.credentials.username;
       this.password = this.credentials.password;
     }
+    
+    this.homieName = config.homieName || "Node-RED"; // device name to be identified by homie devices
+    this.homieRoot = config.homieRoot || "homie"; // root topic for homie devices
+    this.baseTopic = this.homieRoot + '/' + this.homieName;
 
     this.options={};
     this.options.usetls = config.usetls || false; // use tls encryption
@@ -132,10 +136,8 @@ module.exports = function (RED) {
 
     this.mqttQOS = config.mqttQOS || 2;
     this.mqttRetain = config.mqttRetain || true;
-    this.homieName = config.homieName || "Node-RED"; // name to be identified by homie devices
-    this.homieRoot = config.homieRoot || "homie"; // root topic for homie devices
+    this.homieFriendlyName = config.homieFriendlyName || "Node-RED"; // friendly name to be identified by homie devices
     this.homieDevices = [];
-    this.baseTopic = this.homieRoot + '/' + this.homieName;
     this.storeGlobal = config.storeGlobal;
     
     node.addToLog("info","MQTT connect to "+this.brokerurl+" as user "+ this.options.username);
@@ -158,7 +160,7 @@ module.exports = function (RED) {
       var memoryUsage=process.memoryUsage();
       node.client.publish(node.baseTopic + '/$state', 'ready', { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$homie', '4.0.0', { qos: 2, retain: true });
-      node.client.publish(node.baseTopic + '/$name', node.name, { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$name', node.homieFriendlyName, { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$implementation', os.arch(), { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$localip', ip.v4(), { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$mac', ip.v4(), { qos: 2, retain: true });
@@ -172,6 +174,7 @@ module.exports = function (RED) {
       node.client.subscribe(node.homieRoot + '/#', { qos: 2 });
       node.client.subscribe('$SYS/broker/uptime', {qos : 0 });
       node.client.subscribe('$SYS/broker/version', {qos : 0 });
+      node.client.subscribe('$SYS/broker/retained messages', {qos : 0 });
     });
 
     this.getDeviceID= function (deviceName) {
@@ -843,7 +846,6 @@ module.exports = function (RED) {
           if (nodeId=='$nodes') { // list of valid nodes
             var nodes = messageString.split(',');
             for (var i=0; i<nodes.length; i++) {
-              // node.homieData[deviceName].itemList.push({"name":nodes[i],"value":nodes[i]}); // don't have $name yet. Will fix during validation
               node.pushToItemList(node.homieData[deviceName].itemList,nodes[i],nodes[i]);
             }
             node.addToLog("info","Homie Device: "+ deviceName +" has "+i+" nodes: "+ messageString);

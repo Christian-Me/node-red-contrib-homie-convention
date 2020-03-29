@@ -493,12 +493,16 @@
     });
 
 		$('#node-input-broker').change(function(ev) { // update device list if broker is changed (nodes and properties should update subsequently)
-	        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'deviceID', $('#node-input-deviceID').val() || node.deviceID);
+          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'deviceID', $('#node-input-deviceID').val() || node.deviceID);
+          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'nodeID', $('#node-input-nodeID').val() || node.nodeID);
+          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
+          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
 		});
 		$('#node-input-deviceID').change(function(ev) {
           updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'nodeID', $('#node-input-nodeID').val() || node.nodeID);
-          if ($('#node-input-nodeID').val()=="[any]") // update property list if any node selected
+          if ($('#node-input-nodeID').val()=="[any]"){ // update property list if any node selected
             updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
+          }
           if (lastDeviceID!=$('#node-input-deviceID').val()) { // update tree List if Device ID differs.
             updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
           }

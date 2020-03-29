@@ -9,6 +9,7 @@
       verifyservercert: { value: false},
       name: {value: 'Node-RED', required: true},
       homieName: {value: 'Node-RED', required: true},
+      homieFriendlyName: {value: 'Node-RED', required: true},
       homieRoot: {value: 'homie', required: true},
       storeGlobal: {value: false},
       homieDevices: [],
@@ -81,12 +82,17 @@
   </div>
 
   <div class="form-row">
-    <label for="node-config-input-homieName"><i class="fa fa-label"></i> Homie name</label>
+    <label for="node-config-input-homieName"><i class="fa fa-tag"></i> Device name</label>
     <input type="text" id="node-config-input-homieName" placeholder="Node-RED">
+  </div>
+  
+  <div class="form-row">
+    <label for="node-config-input-homieFriendlyName"><i class="fa fa-tags"></i> Friendly name</label>
+    <input type="text" id="node-config-input-homieFriendlyName" placeholder="Node-RED">
   </div>
 
   <div class="form-row">
-    <label for="node-config-input-name"><i class="fa fa-barcode"></i> Device name</label>
+    <label for="node-config-input-name"><i class="fa fa-barcode"></i> Broker name</label>
     <input type="text" id="node-config-input-name" placeholder="Node-RED">
   </div>
 

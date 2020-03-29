@@ -620,16 +620,22 @@ module.exports = function (RED) {
       node.addToLog("debug","Message arrived! topic="+msg.topic+" payload="+msg.payload);
       if (msg.topic && msg.topic!=="") { // topic specified = try to use this
         var splitted = msg.topic.split('/');
-        if (splitted.length!=3) {
-          msgError.error = "Expected deviceID/nodeID/propertyID as topic. Received: '"+msg.topic+"'."
-          node.send([null,msgError]);
-          msgOut.device = node.deviceID;
-          msgOut.node = node.nodeID;
-          msgOut.property = node.propertyID;
-        } else {
-          msgOut.device = splitted[0];
-          msgOut.node = splitted[1];
-          msgOut.property = splitted[2];
+        switch (splitted.length) {
+          case 1: 
+            msgOut.device = node.deviceID;
+            msgOut.node = node.nodeID;
+            msgOut.property = splitted[0];
+            break;
+          case 2: 
+            msgOut.device = node.deviceID;
+            msgOut.node = splitted[0];
+            msgOut.property = splitted[1];
+            break;
+          case 3:
+            msgOut.device = splitted[0];
+            msgOut.node = splitted[1];
+            msgOut.property = splitted[2];
+            break;
         }
       } else { // no topic specified = use node settings
         msgOut.device = node.deviceID;
@@ -969,14 +975,17 @@ module.exports = function (RED) {
               }
             }
           } else { // specific device defined
-            if (device.itemList!==undefined) {
-              if (config.nodeID=="[any]") { // loop through nodes
-                device.itemList.forEach(addNodeToList);
-              } else { // specific node defined
-                if (device[config.nodeID]!==undefined) {
-                  node = device[config.nodeID];
-                  node.itemList.forEach(addPropertyToList);
-                } 
+            if (broker && broker.homieData && broker.homieData.hasOwnProperty(config.deviceID)) {
+              device = broker.homieData[config.deviceID];
+              if (device.itemList!==undefined) {
+                if (config.nodeID=="[any]") { // loop through nodes
+                  device.itemList.forEach(addNodeToList);
+                } else { // specific node defined
+                  if (device[config.nodeID]!==undefined) {
+                    node = device[config.nodeID];
+                    node.itemList.forEach(addPropertyToList);
+                  } 
+                }
               }
             }
           }
