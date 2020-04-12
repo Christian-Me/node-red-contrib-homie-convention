@@ -139,6 +139,7 @@ module.exports = function (RED) {
     this.homieFriendlyName = config.homieFriendlyName || "Node-RED"; // friendly name to be identified by homie devices
     this.homieDevices = [];
     this.storeGlobal = config.storeGlobal;
+    this.homieNodes = {};
     
     node.addToLog("info","MQTT connect to "+this.brokerurl+" as user "+ this.options.username);
     this.client = mqtt.connect(this.brokerurl, this.options);

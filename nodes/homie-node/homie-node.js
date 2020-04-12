@@ -148,7 +148,7 @@ module.exports = function (RED) {
       if (!homieNode.hasOwnProperty(key) || homieNode[key]!==property) { // Attribute new of differ from previous
         if (node.validateProperty(property,def)) {
           homieNode[key]=property;
-          node.mqttPublish(node.broker.baseTopic + '/' + nodeId + ((propertyId!=="") ? '/' + propertyId : '') + '/' + key,property);
+          node.mqttPublish(node.broker.baseTopic + '/' + nodeId + ((propertyId!=="") ? '/' + propertyId : '') + '/' + key,property.toString());
         } else {
           node.errorMessages.push({source:"updateHomieAttribute",message:"property misformed ("+key+")",level:"warn"});
         }
@@ -217,9 +217,9 @@ module.exports = function (RED) {
     }
 
     // homie node is configured by the configuration editor on startup
-    if (node.homieNodeConfig && node.homieNodeConfig.hasOwnProperty('homie')) {
-      node.updateHomieNode(node.homieNodeConfig);
-      if (node.errorMessages.length>0) node.status({fill: 'red', shape: 'dot', text: 'homie configuration has '+ node.errorMessages.length +' errors'});
+    if (this.homieNodeConfig && this.homieNodeConfig.hasOwnProperty('homie')) {
+      this.updateHomieNode(node.homieNodeConfig);
+      if (this.errorMessages.length>0) this.status({fill: 'red', shape: 'dot', text: 'homie configuration has '+ node.errorMessages.length +' errors'});
     }
 
     this.on('input', function(msg) {
