@@ -124,18 +124,18 @@ module.exports = function (RED) {
       node.broker.client.publish(topic, property, { qos: 2, retain: retained });
     }
 
-    this.updateHomieValue = function (homieNode,nodeId,propertyId,value) {
+    this.updateHomieValue = function (homieNode,nodeId,propertyId,setFlag,value) {
       var success = true;
       if (homieNode.hasOwnProperty(propertyId)) {
         let homieProperty=homieNode[propertyId];
         if (value===undefined) { // delete topic
-          node.mqttPublish(node.broker.baseTopic + '/' + nodeId + '/' + propertyId,undefined);
+          node.mqttPublish(node.broker.baseTopic + '/' + nodeId + '/' + propertyId + ((setFlag) ? '/set' : ''),undefined);
         } else if (homieProperty.hasOwnProperty("value")) {
           let currentValueString = (homieProperty.value!=null) ? node.broker.formatValueToString(homieProperty.$datatype,homieProperty.$format,homieProperty.value) : "";
           let newValueString = node.broker.formatValueToString(homieProperty.$datatype,homieProperty.$format,value);
           if (currentValueString!=newValueString) { // only if new or updated
             if (!(homieProperty.$datatype==="enum" && newValueString==="")) {
-              node.mqttPublish(node.broker.baseTopic + '/' + nodeId + '/' + propertyId,newValueString,homieProperty.$retained);
+              node.mqttPublish(node.broker.baseTopic + '/' + nodeId + '/' + propertyId + ((setFlag) ? '/set' : ''),newValueString,homieProperty.$retained);
               homieProperty.valuePredicted=value;
             } else success = false;
           }
@@ -240,13 +240,15 @@ module.exports = function (RED) {
       if (msg.hasOwnProperty('topic') && msg.topic!="" && msg.hasOwnProperty('payload') && node.broker.hasOwnProperty("homieNodes")) {
         var topicSplitted=msg.topic.split('/');
         var homieNodes = node.broker.homieNodes[node.broker.brokerurl];
+        var setFlag = (topicSplitted[topicSplitted.length-1]==="set");
+        if (setFlag) topicSplitted.pop();
         var deviceId = (topicSplitted.length>2) ? topicSplitted[topicSplitted.length-3] : node.broker.homieName;
         if (deviceId == node.broker.homieName) {
           var nodeId = (topicSplitted.length>1) ? topicSplitted[topicSplitted.length-2] : node.nodeId;
           var propertyId = topicSplitted[topicSplitted.length-1];
           if (homieNodes!==undefined && homieNodes.hasOwnProperty(nodeId)) {
             var homieNode=homieNodes[nodeId];
-            success = node.updateHomieValue(homieNode,nodeId,propertyId,msg.payload);
+            success = node.updateHomieValue(homieNode,nodeId,propertyId,setFlag,msg.payload);
             if (success) {
               node.status({fill: 'green', shape: 'dot', text: propertyId+'='+((typeof msg.payload === "object") ? JSON.stringify(msg.payload) : msg.payload )});
             } else {
@@ -277,7 +279,7 @@ module.exports = function (RED) {
               msg.property = {value:homieProperty.value};
               result = node.broker.formatStringToValue(homieProperty.$datatype,homieProperty.$format,msg.property,msg.payload);
               msg.payload=msg.property.value;
-              if (node.autoConfirm && topicSplitted[4]=='set') node.updateHomieValue(homieNodes[nodeId],nodeId,propertyId,originalPayload);
+              if (node.autoConfirm && topicSplitted[4]=='set') node.updateHomieValue(homieNodes[nodeId],nodeId,propertyId,false,originalPayload);
               homieProperty.value=msg.property.value;
               if (node.infoHomie) msg.homie=RED.util.cloneMessage(homieProperty);
               if (node.passMsg || topicSplitted[4]=='set') node.send([msg]);
