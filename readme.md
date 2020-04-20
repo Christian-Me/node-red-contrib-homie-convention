@@ -25,7 +25,8 @@ This node is tested with version **4.0.0** of the Homie convention but should wo
 
 complete changelog see end of file
 
-* 0.1.3 beat: **homie node** New node to enable Node-RED to act like a homie device. Node-RED can advertize nodes and properties to the outside to enable other devices to be informed about values of Node-RED or send commands.
+* 0.1.7 bugfixes for **homie node** and some minor improvements
+* 0.1.3 beta: **homie node** New node to enable Node-RED to act like a homie device. Node-RED can advertize nodes and properties to the outside to enable other devices to be informed about values of Node-RED or send commands.
 * 0.1.2 beta: **homie state node** emits full msg.state object for `msg.payload=deviceId` or `sg.payload="[any]"`. If `msg.payload` is empty the node config is used. `msg.broker` can be specified in a multi broker environment with duplicate device names.
 * 0.1.0 beta: several bug fixes. **New homie state node.**
 * 0.0.7 bug fix: message occasionally carry the wrong topic (when using `msg.topic=msg.label`)

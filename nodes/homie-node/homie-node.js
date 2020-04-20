@@ -1,7 +1,7 @@
 module.exports = function (RED) {
-  function homieExtension (config) {
+  function homieNode (config) {
     RED.nodes.createNode(this, config);
-    var node = this;
+    let node = this;
 
     this.handleDeviceState = function (state) {
       var msgOut = {
@@ -60,6 +60,7 @@ module.exports = function (RED) {
     this.exposeHomieNodes=config.exposeHomieNodes; // expose homieNodes in global context;
     this.homieNodeConfig=JSON.parse(config.homieNodeConfig); // homie config via Editor
     this.inputs = 1;
+    this.outputs = 1;
     this.lastBrokerState = "";
     this.errorMessages = [];
     this.homieNode = {
@@ -219,10 +220,15 @@ module.exports = function (RED) {
     // homie node is configured by the configuration editor on startup
     if (this.homieNodeConfig && this.homieNodeConfig.hasOwnProperty('homie')) {
       this.updateHomieNode(node.homieNodeConfig);
-      if (this.errorMessages.length>0) this.status({fill: 'red', shape: 'dot', text: 'homie configuration has '+ node.errorMessages.length +' errors'});
+      if (this.errorMessages.length>0){
+        this.status({fill: 'red', shape: 'dot', text: 'homie configuration has '+ node.errorMessages.length +' errors'});
+      } else {
+        this.status({fill: 'green', shape: 'dot', text: 'homie configuration updated'});
+      }
     }
 
-    this.on('input', function(msg) {
+    this.on('input', function(msg, send, done) {
+      send = send || function() { node.send.apply(node,arguments) }
       var success = true;
       // homie configuration object arrived
       if (msg.hasOwnProperty('homie')) { 
@@ -232,7 +238,8 @@ module.exports = function (RED) {
       }
       if (!success && node.infoError && node.errorMessages.length>0) { // add error list to message
         msg.error=RED.util.cloneMessage(node.errorMessages);
-        node.send([msg]); // only send msg on error
+        send([msg]); // only send msg on error
+        if (done) done();
         return; // better stop here until errors are fixed!
       }
 
@@ -251,20 +258,31 @@ module.exports = function (RED) {
             success = node.updateHomieValue(homieNode,nodeId,propertyId,setFlag,msg.payload);
             if (success) {
               node.status({fill: 'green', shape: 'dot', text: propertyId+'='+((typeof msg.payload === "object") ? JSON.stringify(msg.payload) : msg.payload )});
+              if (node.passMsg){
+                if (node.infoHomie) msg.homie=homieNode[propertyId];
+                send(msg);
+              }
             } else {
               node.status({fill: 'yellow', shape: 'dot', text: propertyId+'='+((typeof msg.payload === "object") ? JSON.stringify(msg.payload) : msg.payload )+" failed! $datatype="+homieNode[propertyId].$datatype+" $format="+homieNode[propertyId].$format});
             }
           }
         }
       }
-      //  no msg here! reply should come back form the broker!
+      if (done) done();
     });
     
     // handle message for mqtt broker to Node-REd (as device)
-    this.broker.on('redHomieMessage', function (msg) {
-      if (msg.hasOwnProperty("property") || msg.payload==="") return;
-      if (!node || node===null || !node.hasOwnProperty("id")) return;
-      node = RED.nodes.getNode(node.id);
+    this.broker.on('redHomieMessage', function (msg, send, done) {
+      send = send || function() { node.send.apply(node,arguments) }
+      if (msg.payload==="") { // msg.hasOwnProperty("property") || 
+        if (done) done();
+        return;
+      }
+      if (!node || node===null || !node.hasOwnProperty("id")){
+        if (done) done();
+        return;
+      }
+      thisNode = RED.nodes.getNode(node.id);
       if (node && node.broker && node.broker.hasOwnProperty("homieNodes")) {
         var originalPayload = msg.payload;
         var topicSplitted=msg.topic.split('/');
@@ -273,16 +291,22 @@ module.exports = function (RED) {
           var propertyId = topicSplitted[3];
           var nodeId = topicSplitted[2];
           if (homieNodes!==undefined && homieNodes.hasOwnProperty(nodeId) && homieNodes[nodeId].hasOwnProperty(propertyId)) {
+            // send({payload:"Broker message","msg":msg});
+            // console.log({payload:"Broker message","msg":msg})
             var homieProperty = homieNodes[nodeId][propertyId];
             // this node ONLY accepts messages on the /set topic! $settable must be true!
             if (topicSplitted[4]=='set' && homieProperty.$settable) {
               msg.property = {value:homieProperty.value};
               result = node.broker.formatStringToValue(homieProperty.$datatype,homieProperty.$format,msg.property,msg.payload);
-              msg.payload=msg.property.value;
+              if (!homieProperty.$datatype=='enum') {
+                msg.payload=msg.property.value;
+              } else { // for $datatype=='enum' keep the payload
+                msg.value=msg.property.value;
+              }
               if (node.autoConfirm && topicSplitted[4]=='set') node.updateHomieValue(homieNodes[nodeId],nodeId,propertyId,false,originalPayload);
               homieProperty.value=msg.property.value;
               if (node.infoHomie) msg.homie=RED.util.cloneMessage(homieProperty);
-              if (node.passMsg || topicSplitted[4]=='set') node.send([msg]);
+              if (node.passMsg || topicSplitted[4]=='set') send(msg);
               node.status({fill: 'green', shape: 'dot', text: propertyId+'/set ='+originalPayload});
             } else { // reset property to stored value
 
@@ -297,7 +321,7 @@ module.exports = function (RED) {
                   msg.payload = options[msg.property.value];
                   msg.option = msg.property.value;
                 }
-                if (node.passMsg) node.send([msg]);
+                if (node.passMsg) send(msg);
                 delete homieProperty.valuePredicted;
               }
 
@@ -323,14 +347,16 @@ module.exports = function (RED) {
               }
             }
           }
+          if (done) done();
         } else {
           // node.status({fill: 'red', shape: 'dot', text: 'node not defined correctly'});
           // node.addToLog("error","node not defined correctly homieNodes="+node.broker.hasOwnProperty(homieNodes));
         }
       }
+      // if (done) done();
     });
   }
 
-  RED.nodes.registerType('homie-convention-node', homieExtension);
+  RED.nodes.registerType('homie-convention-node', homieNode);
 
 };

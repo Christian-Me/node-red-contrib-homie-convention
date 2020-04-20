@@ -634,6 +634,7 @@ module.exports = function (RED) {
               if (enumList.includes(message)) {
                   property.valueBefore = property.value;
                   property.value = enumList.indexOf(message);
+                  property.payload = message; // keep the message as payload;
                   result = true;
                   break;
                 } else property.error = 'item: '+message+' not found in enum $format: '+format;
@@ -924,7 +925,7 @@ module.exports = function (RED) {
               node.homieData[deviceName][nodeId][propertyId].predicted = true; // set predicted Flag because value received via .../set topic
               var msgOut = node.buildMsgOut(deviceName, nodeId, propertyId, node.homieData[deviceName][nodeId][propertyId]);
               node.emit('message', msgOut);
-            } else { // an error accured
+            } else { // an error occurred
               property.error += ' ' + deviceName + '/' + nodeId + '/' + propertyId+'/set';
               if (property.state=='ok') property.state = 'error';
             }

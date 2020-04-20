@@ -330,6 +330,7 @@ module.exports = function (RED) {
     this.broker.on('validatedDevice', function (msgOut) {
       if (node.startupSent) return;
       node.startupMessages(msgOut.deviceId);
+      node.startupSent= true;
     });
 
     this.broker.on('validatedProperty', function (msgOut) {

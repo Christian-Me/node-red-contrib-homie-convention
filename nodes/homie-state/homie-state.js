@@ -1,5 +1,5 @@
 module.exports = function (RED) {
-  function homieExtension (config) {
+  function homieState (config) {
     RED.nodes.createNode(this, config);
     var node = this;
 
@@ -187,6 +187,6 @@ module.exports = function (RED) {
     });
   }
 
-  RED.nodes.registerType('homie-convention-state', homieExtension);
+  RED.nodes.registerType('homie-convention-state', homieState);
 
 };
