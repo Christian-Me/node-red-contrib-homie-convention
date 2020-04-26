@@ -244,7 +244,7 @@ module.exports = function (RED) {
       }
 
       // update Node-RED device on broker
-      if (msg.hasOwnProperty('topic') && msg.topic!="" && msg.hasOwnProperty('payload') && node.broker.hasOwnProperty("homieNodes")) {
+      if (msg.hasOwnProperty('topic') && msg.topic!="" && node.broker.hasOwnProperty("homieNodes")) {
         var topicSplitted=msg.topic.split('/');
         var homieNodes = node.broker.homieNodes[node.broker.brokerurl];
         var setFlag = (topicSplitted[topicSplitted.length-1]==="set");
@@ -257,7 +257,7 @@ module.exports = function (RED) {
             var homieNode=homieNodes[nodeId];
             success = node.updateHomieValue(homieNode,nodeId,propertyId,setFlag,msg.payload);
             if (success) {
-              node.status({fill: 'green', shape: 'dot', text: propertyId+'='+((typeof msg.payload === "object") ? JSON.stringify(msg.payload) : msg.payload )});
+              node.status({fill: 'green', shape: 'dot', text: propertyId+'='+((typeof msg.payload === "object") ? JSON.stringify(msg.payload) : ((msg.payload===undefined) ? "/set deleted" : msg.payload ))});
               if (node.passMsg){
                 if (node.infoHomie) msg.homie=homieNode[propertyId];
                 send(msg);

@@ -12,11 +12,11 @@ parameter | description | &nbsp;
 ----------|-------------|-------
 Name | The *optional* name of this node | optional
 broker | The broker configuration. In this configuration you can define the basic homie device parameters | required
-nodeId | a unique Id of this node. `homie/nodeId/#` | required
+nodeId | a unique Id of this node. `homie/nodeId/#`| required
 $name | the human readable name of this node | required by homie
 $type | type description of this node | required by homie
 pass messages | pass incoming messages from the input to the output via the mqtt broker | optional
-auto confirm | automatically confirm updates from the `parameter/set` topic to the `parameter` topic | optional
+auto confirm | automatically confirm updates from the `parameter/set` topic to the `parameter` topic. Avoid auto confirm if the nodeId is set to `[any]` as all `/set` commands will be then automatically confirmed. | optional
 include homie | include a `msg.homie`object with the homie configuration parameters of that property | optional
 include error | include a `msg.error`object if an error occurs | optional
 expose homieNodes | expose the `homieNodes` object in global context | optional
@@ -24,7 +24,7 @@ expose homieNodes | expose the `homieNodes` object in global context | optional
 ## parameter configuration
 
 The json editor can be used to define the properties of a homie node. 
-It is expected that the configuration can be done dynamically through the flow. Therefor a `msg.homie` message can be sent to the node on start or included with the first message. Both configurations **merge** so they can be used simultaneous or add new nodes and properties on the fly.
+It is expected that the configuration can be done dynamically through the flow. Therefor a `msg.homie` message can be sent to the node on start or anytime. Both configurations **merge** so they can be used simultaneous or add new nodes and properties on the fly.
 
 Here is an example: `msg=`
 ```json
@@ -68,8 +68,8 @@ The nodeId defined in the configuration can be overridden by sending `msg.nodeId
 
 parameter | description
 --------- | -----------
-**msg.topic** | the topic of this parameter. it can be either the full homie path `homie/deviceId/nodeId/parameterId` or a part of it. The `paramterId` is required
-**msg.payload** | the payload to be sent to the broker
+**msg.topic** | the topic of this parameter. To update the state value it can be either the full homie path `homie/deviceId/nodeId/parameterId` or a part of it. The `paramterId` is required. To send a `/set` command the topic must contain at least `parameterId/set` 
+**msg.payload** | the payload to be sent to the broker. To erase a `/set` topic send a message without a payload.
 
 The payload will be formatted to fit into the homie convention as defined by the `$datatype`and `$format` parameter
 
@@ -79,4 +79,4 @@ updates to a device parameter are received via the `parameterId/set` topic. If a
 
 The homie convention demands that the received value is acknowledged by the device as soon as it is successfully processed. This could be done automatically. If Node-RED is acting on behalf another device the value should be acknowledged as soon as the other device confirms success.
 
-
+After acknowledgment it could be useful to delete the `parameterId/set` topic if the event is a one time trigger therefor send a message with no payload with `msg.topic="parameterId/set"` to avoid re-triggering the event at startup.
