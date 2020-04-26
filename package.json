@@ -16,7 +16,7 @@
     "convention",
     "mqtt",
     "iot",
-    "node-RED",
+    "node-red",
     "node"
   ],
   "author": "Christian Meinert",
