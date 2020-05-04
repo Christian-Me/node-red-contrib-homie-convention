@@ -475,6 +475,8 @@ module.exports = function (RED) {
       var msgError = {status: "error"};
       msgError.function = "input"
       var msgOut = {};
+      var splitted = [];
+      var setFlag = false;
 
       var sendToProperty = function (homieNode) {
         if (homieNode!==undefined) {
@@ -533,12 +535,14 @@ module.exports = function (RED) {
                         return;  
                       }
                       if (msg.payload) { // set to specific value
-                        if (property.$format.includes(msg.payload)) { // msg.payload exists in $format! Change state accordingly
-                          if (msg.payload==enumValues[0] || msg.payload==enumValues[1]) {
+                        if (enumValues.includes(msg.payload)) { // msg.payload exists in $format! Change state accordingly
+                          property.payload=msg.payload;
+                          property.value=enumValues.indexOf(msg.payload)
+                          /* if (msg.payload==enumValues[0] || msg.payload==enumValues[1]) {
                             property.payload=msg.payload;
                             if (msg.payload==enumValues[0]) property.value=0;
                             else property.value=1;
-                          }
+                          } */
                         } else { // toggle for not matching payload
                           if (property.payload==enumValues[0]) {
                             property.payload=enumValues[1];
@@ -600,7 +604,7 @@ module.exports = function (RED) {
 
         // FIRST send unaltered data to mqtt broker!
         if (msgOut.homiePayload) node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.homiePayload); // If a special homie payload exists send this one.
-        else  node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.payload);
+        else  node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,(setFlag) ? (msgOut.payload+"/set") : msgOut.payload);
         return;
 
       }
@@ -620,7 +624,11 @@ module.exports = function (RED) {
       
       node.addToLog("debug","Message arrived! topic="+msg.topic+" payload="+msg.payload);
       if (msg.topic && msg.topic!=="") { // topic specified = try to use this
-        var splitted = msg.topic.split('/');
+        splitted = msg.topic.split('/');
+        setFlag = (splitted(splitted.length-1)=="set");
+        if (setFlag) {
+          splitted.pop();
+        }
         switch (splitted.length) {
           case 1: 
             msgOut.device = node.deviceID;
