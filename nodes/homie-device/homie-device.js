@@ -625,7 +625,7 @@ module.exports = function (RED) {
       node.addToLog("debug","Message arrived! topic="+msg.topic+" payload="+msg.payload);
       if (msg.topic && msg.topic!=="") { // topic specified = try to use this
         splitted = msg.topic.split('/');
-        setFlag = (splitted(splitted.length-1)=="set");
+        setFlag = (splitted[splitted.length-1]=="set");
         if (setFlag) {
           splitted.pop();
         }
