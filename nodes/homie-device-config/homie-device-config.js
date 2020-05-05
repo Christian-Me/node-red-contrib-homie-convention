@@ -148,8 +148,8 @@ module.exports = function (RED) {
       node.client.publish(node.baseTopic + '/' + nodeId + '/' + name, value, { qos: 2, retain: true });
     };
 
-    this.sendToDevice = function (homieDevice, homieNode, homieProperty, value) {
-      var topic = node.homieRoot + '/' + homieDevice + '/' + homieNode + '/' + homieProperty +'/set';
+    this.sendToDevice = function (homieDevice, homieNode, homieProperty, value, setFlag = false) {
+      var topic = node.homieRoot + '/' + homieDevice + '/' + homieNode + '/' + homieProperty + ((setFlag) ? "/set" : "");
       node.addToLog("debug","sendToDevice "+topic+"="+value,true);
       node.client.publish(topic, value.toString(), { qos: 2, retain: true });
     };
