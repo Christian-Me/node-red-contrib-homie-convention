@@ -603,6 +603,7 @@ module.exports = function (RED) {
         msgOut.predicted=property.predicted;
 
         // FIRST send unaltered data to mqtt broker!
+        if (property.$settable) setFlag=true; 
         if (msgOut.homiePayload) node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.homiePayload,setFlag); // If a special homie payload exists send this one.
         else  node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.payload,setFlag);
         return;
