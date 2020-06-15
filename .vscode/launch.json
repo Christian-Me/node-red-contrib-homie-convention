@@ -14,9 +14,22 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
+            //"program": "${workspaceFolder}/node-red.bat",
             "program": "C:/Users/cmeinert/AppData/Roaming/npm/node_modules/node-red/red.js",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
             "runtimeArgs": [
                 "--preserve-symlinks"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Program 2",
+            "program": "${workspaceFolder}/app.js",
+            "skipFiles": [
+                "<node_internals>/**"
             ]
         }
     ]

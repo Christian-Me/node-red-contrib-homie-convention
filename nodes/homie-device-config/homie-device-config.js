@@ -6,6 +6,66 @@ module.exports = function (RED) {
   function homieDeviceConfig (config) {
     RED.nodes.createNode(this, config);
     var node = this;
+    this.homieConvention = {
+      "deviceId": {"type":"string", "required":true},
+      "$homie": {"type":"string", "required":true, "default":"4.0.0"},
+      "$name": {"type":"string", "required":true},
+      "$state": {"type":"enum", "required":true, "default":"lost", "format":"init,ready,disconnected,sleeping,lost,alert"},
+      "$extensions": {"type":"string", "required":false, "default":""},
+      "$implementation": {"type":"string", "required":false, "default":"Node-RED"},
+      "$nodes": {"type":"object", "required":true, "default":""},
+      "_nodes":{
+        "nodeId": {"type":"string", "required":true},
+        "$name": {"type":"string", "required":true,},
+        "$type": {"type":"string", "required":true, "default":""},
+        "$properties": {"type":"object", "required":true, "default":""},
+        "_properties": {
+          "propertyId":{"type":"string", "required":true},
+          "$name":{"type":"string", "required":true},
+          "$datatype":{"type":"enum", "required":true, "default":"string", "format":"string,integer,float,boolean,enum,color,datetime,duration"},
+          "$format":{"type":"string", "required":false},
+          "$settable":{"type":"boolean", "required":false, "default":false},
+          "$retained":{"type":"boolean", "required":false, "default":true},
+          "$unit":{"type":"string", "required":false, "default":""}
+        }        
+      }
+    };
+    this.homieExtensions = {
+      "org.homie.legacy-stats": {
+        "name": "Legacy Stats",
+        "description":"This extension adds the stats functionality of Homie 3.0.1 to Homie 4.0",
+        "url":"https://github.com/homieiot/convention/blob/develop/extensions/documents/homie_legacy_stats_extension.md",
+        "version":"0.1.1",
+        "homie":"4.x",
+        "_definition": {
+          "$stats": {
+            "interval":{"type":"integer","unit":"sec","required":true,"default":60,"format":"","description":"Interval in seconds at which the device refreshes its $stats/+"},
+            "uptime":{"type":"integer","unit":"sec","required":true,"default":0,"format":"","description":"Time elapsed in seconds since the boot of the device"},
+            "signal":{"type":"integer","unit":"%","required":false,"default":0,"format":"0:100","description":"Signal strength"},
+            "cputemp":{"type":"float","unit":"°C","required":false,"default":0,"format":"","description":"CPU Temperature"},
+            "cpuload":{"type":"integer","unit":"%","required":false,"default":0,"format":"0:100","description":"CPU Load. Average of last $stats/interval including all CPUs"},
+            "battery":{"type":"integer","unit":"%","required":false,"default":0,"format":"0:100","description":"Battery level"},
+            "freeheap":{"type":"integer","unit":"bytes","required":false,"default":0,"format":"","description":"Free heap in bytes"},
+            "supply":{"type":"float","unit":"V","required":false,"default":0,"format":"","description":"Supply Voltage in V"},
+          }
+        },
+      },
+      "org.homie.legacy-firmware": {
+        "name":"Legacy Firmware",
+        "description":"This extension adds the firmware, mac and localip device attributes of Homie 3.0.1 to Homie 4.0.",
+        "url":"https://github.com/homieiot/convention/blob/develop/extensions/documents/homie_legacy_firmware_extension.md",
+        "version":"0.1.1",
+        "_definition": {
+          "$localip":{"type":"string","unit":"","required":true,"default":"","format":"","description":"IP of the device on the local network"},
+          "$mac":{"type":"string","unit":"","required":true,"default":"","format":"","description":"Mac address of the device network interface; The format MUST be of the type A1:B2:C3:D4:E5:F6"},
+          "$fw":{
+            "name":{"type":"string","unit":"","required":true,"default":"","format":"","description":"Name of the firmware running on the device; Allowed characters are the same as the device ID"},
+            "version":{"type":"string","unit":"","required":true,"default":"","format":"","description":"Version of the firmware running on the device"},
+            "*":{"type":"string","unit":"","required":false,"default":"","format":"","description":"Additional parameters"} 
+          }
+        }
+      }
+    };
     this.homieNodeDef = {
       "nodeId": {"type":"string", "required":true},
       "$name": {"type":"string", "required":true},
@@ -89,7 +149,36 @@ module.exports = function (RED) {
       for (var logType in node.log) {
         node.sendLog(logType);
       }  
-    }  
+    }
+
+    this.addValueOrFunction = function (destinationObject,param,value) {
+      if (typeof String.prototype.parseFunction != 'function') {
+          String.prototype.parseFunction = function () {
+              var funcReg = /function *\(([^()]*)\)[ \n\t]*{(.*)}/gmi;
+              var match = funcReg.exec(this.replace(/\n/g, ' '));
+              if(match) {
+                  return new Function(match[1].split(','), match[2]);
+              }
+              return null;
+          };
+      }
+      var valueFunction;
+      if (typeof value === "string" && (valueFunction = value.parseFunction())) {
+        destinationObject[param]=valueFunction.bind(this); // to enable this.send() for callback functions.
+      }
+      else destinationObject[param]= value;
+    }
+
+    this.mergeObject = function (destinationObject,sourceObject) {
+      for (var element in sourceObject) {
+          if (!destinationObject[element]) destinationObject[element]=(Array.isArray(sourceObject[element]))? [] : {};
+          if (typeof sourceObject[element] === "object") {
+              node.mergeObject(destinationObject[element],sourceObject[element])
+          } else {
+              node.addValueOrFunction(destinationObject,element,sourceObject[element]);
+          }
+      }
+    }
     
     this.state = 'disconnected';
     this.setState = function (state) {
@@ -140,6 +229,7 @@ module.exports = function (RED) {
     this.homieDevices = [];
     this.storeGlobal = config.storeGlobal;
     this.homieNodes = {};
+    this.homieTree = {};
     
     node.addToLog("info","MQTT connect to "+this.brokerurl+" as user "+ this.options.username);
     this.client = mqtt.connect(this.brokerurl, this.options);
@@ -172,7 +262,8 @@ module.exports = function (RED) {
       node.client.publish(node.baseTopic + '/$fw/name', 'Node-RED ('+os.platform()+' '+os.release()+')', { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$fw/version', RED.version(), { qos: 2, retain: true });
 
-      node.client.subscribe(node.homieRoot + '/#', { qos: 2 });
+      // node.client.subscribe(node.homieRoot + '/#', { qos: 2 });
+      node.client.subscribe('+/+/$homie'); // start listening only for new homie roots first
       node.client.subscribe('$SYS/broker/uptime', {qos : 0 });
       node.client.subscribe('$SYS/broker/version', {qos : 0 });
       node.client.subscribe('$SYS/broker/retained messages', {qos : 0 });
@@ -223,6 +314,7 @@ module.exports = function (RED) {
     // initialize an store everything within a homie/# message
     this.addHomieValue = function(topic,message) {
       var splitted = topic.split('/');
+      var baseID = splitted[0];
       var deviceId = splitted[1];
       var nodeId = splitted[2] || '';
       var propertyId = splitted[3] || '';
@@ -256,43 +348,6 @@ module.exports = function (RED) {
 
       var homieDevice=node.homieData[deviceId];
 
-      /* new code!----------------------
-
-      var currentObject=homieDevice;
-      if (globalDevices) {
-        var currentGlobal=globalDevices[deviceId];
-      }
-
-      for (var i=2; i<splitted.length; i++) {
-        if (!currentObject[splitted[i]]) {
-          switch (i) {
-            case 3: currentObject[splitted[i]]={"nodeId":splitted[i], validated: false, validationError: "new Node, waiting for additional data"};
-              break;
-            case 4: currentObject[splitted[i]]={"propertyId":propertyId, $format:"", $settable:false, $retained:true, $unit:"", validated: false, validatedFormat: false, validatedUnit: false, validationError: "new Node, waiting for additional data"};
-              break;
-            default: currentObject[splitted[i]]={};
-          }
-        }
-        currentObject=currentObject[splitted[i]];
-        // add to global context
-        if (globalDevices) {
-          if (!currentGlobal[splitted[i]]) currentGlobal[splitted[i]]={};
-          currentGlobal=currentGlobal[splitted[i]];
-        }
-      }
-      i=splitted.length-1;
-      if (splitted[i].substr(0,1)=='$') {
-        currentObject=message.toString();
-        if (globalDevices) currentGlobal=message.toString();
-        node.addToLog("info","addHomieValue: "+topic+"="+message.toString());
-      } else {
-        node.addToLog("info",i);
-        currentObject.message=message.toString();
-        if (globalDevices) currentGlobal.message=message.toString();
-      }
-
-      return true;
-*/
       if (nodeId.substr(0,1)==='$') {
         if (splitted.length < 4) {
           homieDevice[nodeId]=message.toString();
@@ -637,7 +692,7 @@ module.exports = function (RED) {
                   property.payload = message; // keep the message as payload;
                   result = true;
                   break;
-                } else property.error = 'item: '+message+' not found in enum $format: '+format;
+                } else property.error = message+' not found in enum $format: '+format;
             } else {
               property.error = '$format expected to provide comma separated list of valid payloads';
             }
@@ -820,11 +875,19 @@ module.exports = function (RED) {
           break;
       }
       var splitted = topic.split('/');
+      var baseId = splitted[0];
       var deviceName = splitted[1];
       var nodeId = splitted[2] || '';
       var propertyId = splitted[3] || '';
       var property = splitted[4] || '';
 
+      if (nodeId === "$homie" && !node.homieTree.hasOwnProperty(baseId)) {
+        node.addToLog("info","New Homie base topic detected: '"+ baseId +"' "+ nodeId + "=" + messageString + " subscribed to "+ baseId +"/#");
+        node.homieTree[baseId]={};
+        node.homieTree[baseId].$homie=messageString;
+        node.client.subscribe(baseId + '/#', { qos: 2 });
+        return;
+      }
 
       var stateMsg = {
         "topic": deviceName+'/'+nodeId,

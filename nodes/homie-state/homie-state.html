@@ -83,33 +83,34 @@
 
 	function stateConfigEditPrepare(node, allowEmpty) {
 
-       function updateProperty(cntrlConfig, valueID, itemName) {
-        if ( cntrlConfig ) {
-          var config = {
-            name: cntrlConfig.name,
-            broker: cntrlConfig.id,
-            // field name to query
-            itemID: valueID,
-            // filters to query
-            stateDeviceID: $('#node-input-stateDeviceID').val(),
-          }
-          console.log("updateProperty ("+itemName+") = ",cntrlConfig,config);
-          $.getJSON("homieConvention/propertyInfo", config)
-            .done( function(data) {
-              console.log("homieConvention/propertyInfo: "+ JSON.stringify(data));
-            })
-            .fail( function(e1, e2, e3) {
-              console.log("homieConvention/propertyInfo: error e1=" + JSON.stringify(e1));
-              console.log("homieConvention/propertyInfo: error e2=" + JSON.stringify(e2));
-              console.log("homieConvention/propertyInfo: error e3=" + JSON.stringify(e3));
-            });        }
+    function updateProperty(cntrlConfig, valueID, itemName) {
+      if ( cntrlConfig ) {
+        var config = {
+          name: cntrlConfig.name,
+          broker: cntrlConfig.id,
+          // field name to query
+          itemID: valueID,
+          // filters to query
+          stateDeviceID: $('#node-input-stateDeviceID').val(),
+        }
+        console.log("updateProperty ("+itemName+") = ",cntrlConfig,config);
+        $.getJSON("homieConvention/propertyInfo", config)
+          .done( function(data) {
+            console.log("homieConvention/propertyInfo: "+ JSON.stringify(data));
+          })
+          .fail( function(e1, e2, e3) {
+            console.log("homieConvention/propertyInfo: error e1=" + JSON.stringify(e1));
+            console.log("homieConvention/propertyInfo: error e2=" + JSON.stringify(e2));
+            console.log("homieConvention/propertyInfo: error e3=" + JSON.stringify(e3));
+          });        
       }
-      function setColourPickerColour(id, val, ed) {
+    }
+    function setColourPickerColour(id, val, ed) {
                     $("#"+id).val(val);
                     $("#"+id).css("background-color", val);
                 }
 
-      function updateItemSelection(cntrlConfig, valueID, itemName) {
+    function updateItemSelection(cntrlConfig, valueID, itemName) {
 
         var itemSelectionEl = $('#node-input-'+ valueID);
         var treeData = [];
@@ -189,7 +190,7 @@
     category: 'Homie convention',
     paletteLabel: 'Homie state',
     label: 'Homie state',
-    color: '#e74c3c',
+    color: '#B82819',
     defaults: {
       broker: {value: '', type: 'homie-convention-broker-config', required: true},
       name: {value: ''},
@@ -201,7 +202,7 @@
     },
     inputs: 1,
     outputs: 1,
-    icon: "homie-state.png",
+    icon: "Homie-state-logo.svg",
     label: function() {
       this.topic= this.stateDeviceID;
       return this.name||this.topic||"homie state";

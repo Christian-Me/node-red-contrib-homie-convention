@@ -10,7 +10,7 @@
       name: {value: 'Node-RED', required: true},
       homieName: {value: 'Node-RED', required: true},
       homieFriendlyName: {value: 'Node-RED', required: true},
-      homieRoot: {value: 'homie', required: true},
+      homieRoot: {value: '', required: false},
       storeGlobal: {value: false},
       homieDevices: [],
       homieData: {}
@@ -77,8 +77,8 @@
   </div>
 
   <div class="form-row">
-      <label for="node-config-input-homieRoot"><i class="fa fa-label"></i> root Topic</label>
-      <input type="text" id="node-config-input-homieRoot" placeholder="homie">
+      <label for="node-config-input-homieRoot"><i class="fa fa-label"></i> Base Topic</label>
+      <input type="text" id="node-config-input-homieRoot" placeholder="auto-discover">
   </div>
 
   <div class="form-row">
@@ -117,8 +117,8 @@
         <li><b>Name</b> Optionally specify a internal name<for this configuration/li>
         <li><b>MQTT hots</b> Host address of the mqtt broker</li>
         <li><b>MQTT port</b> Port address of the mqtt broker</li>
-        <li><b>Homie root</b> Optionally enter different root toic to subscribe to. <code>homie</code> is specified as default. Only chnage it if you know what you are doing because this may break auto-dicover functionality.</li>
-        <li><b>Homie name</b> Give this Node-Red server a unique name to be adressed directly by other homie nodes.</li>
+        <li><b>Base Topic</b> Optionally enter a base topic to subscribe to. If empty the node will search for homie devices by subscribing to <code>+/+/$homie</code></li>
+        <li><b>Homie name</b> Give this Node-Red server a unique name to be addressed directly by other homie nodes.</li>
    	</ul>
 	<p></p>
 

@@ -1,0 +1,34 @@
+{
+    "baseName": {
+        "deviceName": {
+            "$name": "Demo Device",
+            "$nodes": {
+                "firstNode": {
+                    "$name": "Demo Node",
+                    "$properties": {
+                        "state": {
+                            "$name": "program state",
+                            "$datatype": "enum",
+                            "$settable": false,
+                            "$retained": true,
+                            "$format": "stop,prepareing,runing,error"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+{
+    "homie": {
+        "$properties": {
+            "state":{
+                "$name": "program state",
+                "$datatype": "enum",
+                "$settable": false,
+                "$retained": true,
+                "$format": "stop,prepareing,runing,error"
+            }
+        }
+    }
+}

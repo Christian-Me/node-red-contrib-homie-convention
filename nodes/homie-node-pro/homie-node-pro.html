@@ -1,0 +1,609 @@
+<script type="text/html text/x-red" data-template-name="homie-convention-node-pro">
+
+    <div class="form-row">
+      <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+      <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+      <label for="node-input-broker"><i class="fa fa-exchange"></i> Broker</label>
+      <input id="node-input-broker">
+    </div>
+
+    <div class="form-row">
+      <ul style="min-width: 600px; margin-bottom: 20px;" id="node-homie-node-tabs"></ul>
+    </div>
+
+    <div id="node-homie-node-tabs-content" style="min-height: 170px;">
+      <div id="homie-node-tab-basic" style="display:none">
+           
+        <div class="form-row">
+          <label><i class="fa fa-info-circle"></i> Options</label>
+          <input type="checkbox" id="node-input-passMsg" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-passMsg" style="width: 70%;">&nbsp;<i class="fa fa-arrow-right"></i>&nbsp;pass messages through</label>
+        </div>
+        <div class="form-row">
+          <label>&nbsp;</label>
+          <input type="checkbox" id="node-input-autoConfirm" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-autoConfirm" style="width: 70%;">&nbsp;<i class="fa fa-check-square"></i>&nbsp;auto confirm <code>/set</code> messages</label>
+        </div>
+        <div class="form-row">
+          <label>&nbsp;</label>
+          <input type="checkbox" id="node-input-infoHomie" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-infoHomie" style="width: 70%;">&nbsp;<i class="fa fa-tags"></i>&nbsp;include <code>msg.homie</code></label>
+        </div>
+        <div class="form-row">
+          <label>&nbsp;</label>
+          <input type="checkbox" id="node-input-infoError" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-infoError" style="width: 70%;">&nbsp;<i class="fa fa-exclamation-triangle"></i>&nbsp;include <code>msg.error</code></label>
+        </div>
+        <div class="form-row">
+          <label>&nbsp;</label>
+          <input type="checkbox" id="node-input-exposeHomieNodes" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-exposeHomieNodes" style="width: 70%;">&nbsp;<i class="fa fa-database"></i>&nbsp;expose <code>homeNodes</code> in global context</label>
+        </div>
+        <div class="form-row">
+          <label><i class="fa fa-code"></i> Expert</label>
+          <input type="checkbox" id="node-input-customHomie" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-customHomie" style="width: 70%;">&nbsp;<i class="fa fa-label"></i>&nbsp;use custom homie convention</label>
+        </div>
+        <div class="form-row">
+          <label>&nbsp;</label>
+          <input type="checkbox" id="node-input-customExHomie" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-customExHomie" style="width: 70%;">&nbsp;<i class="fa fa-labels"></i>&nbsp;use custom homie extensions</label>
+        </div>
+      </div>
+      
+      <div id="homie-node-tab-homieNodeConfig" style="display:none">
+        <div class="form-row" style="margin-bottom:0px;">
+          <label for="node-input-homieNodeConfig" style="width: 70%;"><i class="fa fa-wrench"></i>&nbsp;homie&nbsp;node&nbsp;configuration</label>
+          <input type="hidden" id="node-input-homieNodeConfig">
+          <button id="node-config-load-example" class="red-ui-button red-ui-button-small" style="float:right"><i class="fa fa-download"></i>&nbsp;example</button>
+          <button id="node-config-expand-homieNodeConfig" class="red-ui-button red-ui-button-small" style="float:right"><i class="fa fa-expand"></i></button>
+        </div>
+        <div class="form-row node-text-editor-row-homieNodeConfig">
+            <div style="height: 500px; min-height:150px;" class="node-text-editor" id="node-input-homieNodeConfig-editor"></div>
+        </div>
+      </div>
+      
+      <div id="homie-node-tab-homieDefinition" style="display:none">
+        <div class="form-row" style="margin-bottom:0px;">
+          <label for="node-input-homieDefinition" style="width: 70%;"><i class="fa fa-wrench"></i>&nbsp;homie&nbsp;configuration</label>
+          <input type="hidden" id="node-input-homieDefinition">
+          <button id="node-config-load-homieDefinition-4-0-0" class="red-ui-button red-ui-button-small" style="float:right"><i class="fa fa-download"></i>&nbsp;4.0.0</button>
+          <button id="node-config-expand-homieDefinition" class="red-ui-button red-ui-button-small" style="float:right"><i class="fa fa-expand"></i></button>
+        </div>
+        <div class="form-row node-text-editor-row-homieDefinition">
+            <div style="height: 500px; min-height:150px;" class="node-text-editor" id="node-input-homieDefinition-editor"></div>
+        </div>
+      </div>
+    
+      <div id="homie-node-tab-extensions" style="display:none">
+        <div class="form-row">
+          <label for="node-input-exDeviceId"><i class="fa fa-crosshairs"></i> Device</label>
+          <select id="node-input-exDeviceId" style="width: 100%;"></select>
+        </div>
+        <div class="form-tips" style="width: 100%; height: 65px;" id="node-input-extensions-tips">
+          <p>
+            Hover over the items to get detailed information.
+          </p>
+        </div>
+        <div class="form-row node-treeList-row-extensions">
+          <div style="height: 500px; min-height:150px;" class="node-extensions-treeList" id="node-input-extensions-treeList"></div>
+        </div>
+      </div>
+
+      <div id="homie-node-tab-extensionsDefinitionTab" style="display:none">
+        <div class="form-row" style="margin-bottom:0px;">
+          <label for="node-input-extensionsDefinition" style="width: 70%;"><i class="fa fa-wrench"></i>&nbsp;extensions&nbsp;configuration</label>
+          <input type="hidden" id="node-input-extensionsDefinition">
+          <button id="node-config-load-homieExtensions" class="red-ui-button red-ui-button-small" style="float:right"><i class="fa fa-download"></i>&nbsp;download</button>
+          <button id="node-config-expand-extensionsDefinition" class="red-ui-button red-ui-button-small" style="float:right"><i class="fa fa-expand"></i></button>
+        </div>
+        <div class="form-row node-text-editor-row-extensionsDefinition">
+            <div style="height: 500px; min-height:150px;" class="node-text-editor" id="node-input-extensionsDefinition-editor"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</script>
+
+<script type="text/javascript">
+  //style="width: 100% !important;"
+
+  var treeLists;
+
+  // remember last selection to prevent unnecessary Updates
+  var lastDeviceID;
+
+  // resize editor or treeList to fill the remaining space (one editor per tab!)
+  // called by oneditresize & tabs.onchange
+  var resizeTab= function(node, elementId) {
+    if (!node) return;
+
+    // determine remaining vertical space
+    var height = $("#dialog-form").height();
+    var formRows = $("#dialog-form>div:not(#node-homie-node-tabs-content)");
+    for (let i=0; i<formRows.size(); i++) {
+      height -= $(formRows[i]).outerHeight(true);
+    }
+    
+    // resize editors
+    if (node.editors && node.editors.hasOwnProperty(elementId)) {
+      tabRows = $(`#homie-node-tab-${elementId}>div:not(.node-text-editor-row-${elementId})`);
+      for (let i=0; i<tabRows.size(); i++) {
+        height -= $(tabRows[i]).outerHeight(true);
+      }
+      var editorRow = $(`#homie-node-tab-${elementId}>div.node-text-editor-row-${elementId}`);
+      height -= (parseInt(editorRow.css("marginTop")) + parseInt(editorRow.css("marginBottom")));
+      $(".node-text-editor").css("height",height+"px");
+      node.editors[elementId].resize();
+    }
+    // resize treeLists
+    if (node.treeLists && node.treeLists.hasOwnProperty(elementId)) {
+      // update treeList
+      if (lastDeviceID!==undefined && lastDeviceID!=='') {
+        node.homieExtensions[lastDeviceID] = {};
+        collectTeeLists(node.homieExtensions[lastDeviceID],node.treeLists['extensions'].treeList('data'));
+      }
+      lastDeviceID=$('#node-input-exDeviceId').val() || node.exDeviceId;
+      node.treeLists['extensions'].treeList('data',extensionData[lastDeviceID]);
+
+      //resize treeList
+      tabRows = $(`#homie-node-tab-${elementId}>div:not(.node-treeList-row-${elementId})`);
+      for (let i=0; i<tabRows.size(); i++) {
+        height -= $(tabRows[i]).outerHeight(true);
+      }
+      var editorRow = $(`#homie-node-tab-${elementId}>div.node-treeList-row-${elementId}`);
+      height -= (parseInt(editorRow.css("marginTop")) + parseInt(editorRow.css("marginBottom")));
+      $(`.red-ui-treeList`).css("height",height+"px");
+    }
+  }
+
+  // create multiple editors
+  var createEditor= function(editors,id) {
+    editors[id] = RED.editor.createEditor({
+        id: "node-input-"+id+"-editor",
+        mode: "ace/mode/json",
+        value: $("#node-input-"+id).val()
+    });
+
+    $("#node-config-expand-"+id).on("click", function(e) {
+      e.preventDefault();
+      var value = editors[id].getValue();
+      RED.editor.editText({
+          mode: 'json',
+          value: value,
+          width: "Infinity",
+          cursor: editors[id].getCursorPosition(),
+          complete: function(v,cursor) {
+            editors[id].setValue(v, -1);
+            editors[id].gotoLine(cursor.row+1,cursor.column,false);
+            setTimeout(function() { editors[id].focus(); },300);
+          }
+      })
+    })
+  }
+
+  var extensionsTreeCheck = function(id,event, item) {
+    var result = false;
+    var checkParents = function(parent) {
+      if (!parent.selected) result = true;
+      parent.selected=true;
+      if (parent.hasOwnProperty('parent')) checkParents(parent.parent);
+    }
+    if (item.hasOwnProperty('parent')) {
+      checkParents(item.parent);
+    }
+    return result;
+  }
+
+  var cerateTreeList= function(treeLists,id) {
+    var node = this;
+    treeLists[id] = $("<div>")
+      .css({width: "100%", height: "250px"})
+      .appendTo(".node-"+id+"-treeList")
+      .treeList({})
+      .on('treelistitemmouseover',function(e,item) {
+        if (item.info) {
+          $("#node-input-extensions-tips").html(item.info)
+        }
+      })
+      .on('treelistselect', function(event, item) {
+        if (item.selected) {
+            if (node.extensionsTreeCheck(id,event,item)) {
+              extensionData[$('#node-input-exDeviceId').val() || node.exDeviceId] = treeLists[id].treeList('data');
+              treeLists[id].treeList('data',extensionData[$('#node-input-exDeviceId').val() || node.exDeviceId]);
+            };
+        } else {
+            // The checkbox is not checked
+        }
+      });
+    treeLists[id].treeList('data',[{label:"empty"}]);
+  }
+
+// collect selected attribute of treeList data
+function collectTeeLists(target, source) {
+  for (var index in source) {
+    if (!target.hasOwnProperty(source[index].label)) target[source[index].label]={};
+    target[source[index].label].selected = source[index].selected;
+    if (source[index].hasOwnProperty('children')) {
+      target[source[index].label].children={};
+      collectTeeLists(target[source[index].label].children, source[index].children);
+    }
+  }
+}
+
+// merge selections into treeList data
+function updateTeeList(data, selections) {
+  for (var index in data) {
+    if (selections.hasOwnProperty(data[index].label)) {
+      data[index].selected = selections[index].selected;
+    }
+    if (data[index].hasOwnProperty('children')) {
+      updateTeeList(data[index].children, selections[index].children);
+    }
+  }
+}
+
+function extensionConfigEditPrepare(node, allowEmpty) {
+
+  function updateExtensions(cntrlConfig, valueID, itemName) {
+    var itemSelectionEl = $('#node-input-'+ valueID);
+    var treeData = [];
+    if ( cntrlConfig ) {
+      var config = {
+        name: cntrlConfig.name,
+        node: cntrlConfig.id,
+        // field name to query
+        itemID: valueID,
+        // filters to query
+        exDeviceId: $('#node-input-exDeviceId').val() || node.exDeviceId,
+      }
+      
+      $.getJSON("homieConvention/proDeviceList", config)
+        .done( function(data) {
+          var items = data;
+          if (config.itemID!=="extensions" ) { // fill dropdown list except for treeView updates
+            itemSelectionEl.children().remove();
+
+            items.sort(function(a,b) {
+              if ( a.toLowerCase() < b.toLowerCase() )
+                return -1;
+              else if ( a.toLowerCase() > b.toLowerCase() )
+                return 1;
+              else
+                return 0;
+            });
+
+            itemSelectionEl.append('<option value="[all]">[all]</option>');
+            items.forEach(function (item) {
+              itemSelectionEl.append('<option value="'+item+'">' + item + '</option>');
+            });
+            itemSelectionEl.val(itemName);
+          } else {
+            extensionData[itemName]=data;
+          }
+        })
+        .fail(function(e1, e2, e3) {
+          console.log("error : " + JSON.stringify(e1));
+        });
+    } else console.log("Ups, config!:",cntrlConfig);
+  }
+
+  function getData(cntrlConfig, valueId, versionId) {
+    if ( cntrlConfig ) {
+      var config = {
+        name: cntrlConfig.name,
+        node: cntrlConfig.id,
+        itemID: valueId,
+        version: versionId
+      }
+      
+      $.getJSON("homieConvention/proDeviceList", config)
+        .done( function(data) {
+          var node = cntrlConfig;
+          // console.log('getData',data);
+          node.editors[valueId].setValue(JSON.stringify(data,undefined,'\t'));
+        })
+        .fail(function(e1, e2, e3) {
+          console.log("error : " + JSON.stringify(e1));
+        });
+    } else console.log("Ups, config!:",cntrlConfig);
+  }
+
+  $('#node-input-broker').change(function(ev) { // update device list if broker is changed
+    updateExtensions(node,'exDeviceId', $('#node-input-exDeviceId').val() || node.exDeviceId);
+  });
+
+  $('#node-input-exDeviceId').change(function(ev) { // update extensions tree view
+    if (!extensionData.hasOwnProperty($('#node-input-exDeviceId').val() || node.exDeviceId)) {
+      updateExtensions(node,'extensions', $('#node-input-exDeviceId').val() || node.exDeviceId);
+    }
+    if (lastDeviceID!==undefined && lastDeviceID!=='') {
+        node.homieExtensions[lastDeviceID] = {};
+        collectTeeLists(node.homieExtensions[lastDeviceID],node.treeLists['extensions'].treeList('data'));
+      }
+      lastDeviceID=$('#node-input-exDeviceId').val() || node.exDeviceId;
+      node.treeLists['extensions'].treeList('data',extensionData[lastDeviceID]);
+  });
+
+  $('#node-input-customHomie').on("click",function() { // enable tab for custom homie definition
+    if ($('#node-input-customHomie').is(':checked')){
+      let currentData = (node.editors.hasOwnProperty('homieDefinition')) ? node.editors.homieDefinition.getValue() : '';
+      node.tabs.addTab({
+          id: "homie-node-tab-homieDefinition",
+          label: "homie def"
+      });
+    } else {
+      node.tabs.removeTab("homie-node-tab-homieDefinition");
+    }
+  });
+
+  $('#node-config-load-homieDefinition-4-0-0').on("click",function() { // download homie convention 4.0.0
+    getData(node,'homieDefinition','4.0.0');
+  });
+
+  $('#node-config-load-homieExtensions').on("click",function() { // download homie extensions
+    getData(node,'extensionsDefinition','');
+  });
+
+  $('#node-config-load-example').on("click",function() { // download example
+    getData(node,'homieNodeConfig','4.0.0');
+  });
+  
+  $('#node-input-customExHomie').on("click",function() { // enable tab for custom homie extension definition
+    if ($('#node-input-customExHomie').is(':checked')){
+      node.tabs.addTab({
+          id: "homie-node-tab-extensionsDefinitionTab",
+          label: "extensions def"
+      });
+    } else {
+      node.tabs.removeTab("homie-node-tab-extensionsDefinitionTab");
+    }
+  });
+}
+
+  var extensionData = {};
+  var currentUITab = "";
+    
+  // register homie-convention-node
+  RED.nodes.registerType('homie-convention-node-pro', {
+    category: 'Homie convention',
+    paletteLabel: 'Homie pro',
+    label: 'Homie node pro',
+    color: '#D32D1C',
+    defaults: {
+      broker: {value: '', type: 'homie-convention-broker-config', required: true},
+      name: {value: ''},
+      passMsg: {value: false},
+      autoConfirm: {value: false},
+      infoHomie: {value: false},
+      infoError: {value: false},
+      exposeHomieNodes: {value: false},
+      homieNodeConfig: {
+        value: "{}",
+        validate: function(value) {
+          if (value.length === 0) return true;
+          try {
+            JSON.parse(value);
+          } catch (e) {
+            return false;
+          }
+          return value[0] === "{";
+        }
+      },
+      homieDefinition: {
+        value: "{}",
+        validate: function(value) {
+          if (value.length === 0) return true;
+          try {
+            JSON.parse(value);
+          } catch (e) {
+            return false;
+          }
+          return value[0] === "{";
+        }
+      },
+      extensionsDefinition: {
+        value: "{}",
+        validate: function(value) {
+          if (value.length === 0) return true;
+          try {
+            JSON.parse(value);
+          } catch (e) {
+            return false;
+          }
+          return value[0] === "{";
+        }
+      },
+      exDeviceId: {value: "[all]"},
+      homieExtensions: {value: {}},
+      customHomie: {value: false},
+      customExHomie: {value: false},
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "Homie-pro-logo.svg",
+    label: function() {
+      this.topic= this.stateDeviceID;
+      return this.name||this.topic||"homie node";
+    },
+    oneditprepare: function() {
+      let node = this;
+      node.editors={};
+      node.treeLists={};
+      createEditor(node.editors,"homieNodeConfig");
+      createEditor(node.editors,"homieDefinition");
+      createEditor(node.editors,"extensionsDefinition");
+      cerateTreeList(node.treeLists,"extensions");
+
+      // config tabs
+      node.tabs = RED.tabs.create({
+            id: "node-homie-node-tabs",
+                onchange: function(tab) {
+                  $("#node-homie-node-tabs-content").children().hide();
+                  $("#" + tab.id).show();
+                  currentUITab= tab.id.split('-')[3];
+                  resizeTab(tab.node,currentUITab);
+                }
+            });
+      node.tabs.addTab({
+          id: "homie-node-tab-basic",
+          node: this,
+          label: this._("basic")
+      });
+      node.tabs.addTab({
+          id: "homie-node-tab-homieNodeConfig",
+          node: this,
+          label: this._("configuration")
+      });
+      node.tabs.addTab({
+          id: "homie-node-tab-extensions",
+          node: this,
+          label: this._("extensions")
+      });
+      if (node.customHomie){
+        node.tabs.addTab({
+          id: "homie-node-tab-homieDefinition",
+          label: "homie def"
+        });
+      }
+      if (node.customExHomie){
+        node.tabs.addTab({
+          id: "homie-node-tab-extensionsDefinitionTab",
+          label: "extensions def"
+        });
+      }
+      setTimeout(function() { node.tabs.resize(); },0);
+      extensionConfigEditPrepare(this, true)
+    },
+    oneditsave: function() { 
+      let node = this;
+      for (let editorId in node.editors) {
+        $("#node-input-"+editorId).val(node.editors[editorId].getValue());
+        node.editors[editorId].destroy();
+        delete node.editors[editorId];
+      }
+      // collect tree list data
+      if (lastDeviceID!==undefined){
+        collectTeeLists(node.homieExtensions[lastDeviceID],node.treeLists['extensions'].treeList('data'));
+      }
+    },
+    oneditcancel: function() {
+      let node = this;
+      for (let editorId in node.editors) {
+        node.editors[editorId].destroy();
+        delete node.editors[editorId];
+      }
+    },
+    oneditresize: function(size) {
+      let node = this;
+      resizeTab(node,currentUITab);
+    }
+  });
+</script>
+
+<script type="text/x-red" data-help-name="homie-convention-node-pro">
+  <p> <img src="https://homieiot.github.io/img/homie-logo.png"></img>
+  </p>
+  <p>
+    This node enables Node-RED to provide its own services to the outside world or acting on behalf of other devices according to the homie convention. The node covers the complete homie convention including the following extensions
+    The node can be configured by JSON objects:
+    <ul>
+      <li><b>configuration</b> configure every aspect of baseId, devices, nodes and properties.</li>
+      <li><b>homie definition</b> expand or modify the homie conventions <i>(optional)</i>.</li>
+      <li><b>homie extensions</b> create, expand or modify homie extensions<i>(optional)</i>.</li>
+    </ul>
+    <ul>
+      <li><b>legacy stats</b> detailed device statistical information</li>
+      <li><b>Legacy Firmware</b> information on the device firmware</li>
+      <li>send (new) state of the property <b>or</b></li>
+      <li>send a <b>/set</b> topic to that property</li>
+    </ul>
+    Use the homie device node to listen for <b>/set</b> topic of the Node-RED device
+    Detailed information you find at <a href="https://homieiot.github.io">https://homieiot.github.io</a>
+    Due to the mqtt specification the broker will echo back all new topics to ALL subscribers including the <b>sender</b>!
+  </p>
+  <p></p>
+	<b>Configuration</b>
+    <ul>
+      <li><b>Name :</b>  specify a name</li>
+      <li><b>Broker :</b> Select the mqtt broker where your device is sending messages to.</li>
+    </ul>
+      
+  <h3>Options</h3>
+    <p>
+        Configuration like timing and errors can be added to the msg object
+    </p>
+    <ul>
+      <li><b>pass message :</b> Select to pass messages form input to output (via MQTT broker).</li>
+      <li><b>auto confirm /set message :</b> Select to automatically confirm /set messages.</li>
+      <li><b>msg.homie :</b> Select to receive homie property definition.</li>
+      <li><b>msg.error :</b> Select to receive error information.</li>
+      <li><b>global context :</b> Select expose node in global context.</li>
+    </ul>
+    <p>
+      Expert settings
+    </p>
+    <ul>
+        <li><b>use custom homie convention</b> Play around with the homie convention.</li>
+        <li><b>use custom homie extensions</b> Modify or add (simple) homie extensions.</li>  
+    </ul>
+  <p></p>
+  
+  <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>msg.homie <i>optional</i>
+            <span class="property-type">object</span>
+        </dt>
+        <dd>full or partial homie object. Will be merged into the existing homie configuration</dd>
+    </dl>
+    <dl class="message-properties">
+      <dt>msg.topic
+          <span class="property-type">string</span>
+      </dt>
+      <dd> the topic of this parameter. Full homie path <code>baseId/deviceId/nodeId/parameterId</code></dd>
+    </dl>
+    <dl class="message-properties">
+      <dt>msg.payload
+          <span class="property-type">string</span>
+      </dt>
+      <dd> payload to be sent to the broker <i>optional</i> If empty the node emits the current value of the property</dd>
+    </dl>
+
+ <h3>Outputs</h3>
+    <ol class="node-ports">
+      <li>Standard output
+        <dl class="message-properties">
+          <dt>msg.homie <span class="property-type">object</span></dt>
+          <dd>actual full homie object of this node</dd>
+
+          <dt>msg.topic <span class="property-type">string</span></dt>
+          <dd>mqtt topic of the updated property</dd>
+
+          <dt>msg.payload <span class="property-type">string</span></dt>
+          <dd>mqtt payload of the updated property</dd>
+
+          <dt>msg.homie <span class="property-type">object</span></dt>
+          <dd>additional device/node/property information. If enabled</dd>
+
+          <dt>msg.error <span class="property-type">object</span></dt>
+          <dd>error messages. If enabled.</dd>
+        </dl>
+      </li>
+    </ol>
+
+  <h3>Details</h3>
+    <p>
+        The Homie convention defines a standardized way of how IoT devices and services announce themselves and their data on the MQTT broker.<br>
+        It is thereby a crucial aspect on top of the MQTT protocol for <i>automatic discovery, configuration</i> and <i>usage</i> of devices and services.<br>
+        Form more Information head over to <a href="https://homieiot.github.io/">https://homieiot.github.io/</a>
+    </p>  
+
+  <h3>References</h3>
+    <ul>
+        <li><a href="https://homieiot.github.io/">Homie Convention</a> - full specification of the Homie Convention</li>
+        <li><a href="https://github.com/Christian-Me/node-red-contrib-homie-convention">GitHub</a> - the nodes github repository</li>
+    </ul>
+</script>

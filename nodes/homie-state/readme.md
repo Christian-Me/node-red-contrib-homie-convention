@@ -1,7 +1,11 @@
-# homie state
+# homie node pro
 
 
-A message is emitted when the $state topic (or any other status information) of any or a specific device changes. Detailed information you find at
+Create "virtual" or "translated" devices according to the homie standard
+
+# theory of operations
+
+
 
 # Configuration
 
