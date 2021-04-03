@@ -1,41 +1,56 @@
-<script type="text/x-red" data-template-name="homie-convention-device">
-<!--
+<script type="text/html text/x-red" data-template-name="homie-convention-device">
 
-  <style type="text/css">
-    .btn-group {
-      width: 70%;
-    }
-    .multiselect {
-      width: 100%;
-    }
-    .form-row input.multiselect-search {
-      width: 100%;
-    }
-    .multiselect-clear-filter {
-        display: none;
-    }
-    .dropdown-menu {
-        width: 100% !important;
+    <style>
+      .homie-ready {
+        background-color: rgba(0, 128, 0, 0.2);
       }
-      .multiselect-container input[type="checkbox"] {
-        display: none;
-    }
-    .multiselect-container > li > a > label.radio {
-      margin: 5px;
-      width: 90%;
-      height: 100%;
-      cursor: pointer;
-        font-weight: 400;
-        padding: 3px 20px 3px 20px;
+      .homie-lost {
+        color: #80000;
+        background-color: rgba(128, 0, 0, 0.5);
       }
-      .multiselect-container label.radio input[type="radio"] {
-        display: none;
-    }
-  </style>
-  
-  <link rel="stylesheet" href="static/css/bootstrap-multiselect.css" type="text/css" />
-    
-  -->
+      .homie-sleeping {
+        background-color: rgba(0, 0, 128, 0.5);
+      }
+      .homie-init {
+        background-color: rgba(255, 255, 100, 0.5);
+      }
+      .homie-disconnected {
+        background-color: rgba(102, 102, 51, 0.5);
+      }
+      .homie-alert {
+        background-color: rgba(204, 0, 204, 0.5);
+      }
+      .homie-undefined {
+        background-color: rgba(102, 153, 153, 0.5);
+      }
+      .homie-base {
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+      .homie-node {
+        background-color: rgba(0, 0, 0, 0.3);
+      }
+      .homie-extension {
+        font-family: "Helvetica Neue",Arial,Helvetica,sans-serif;
+        font-style: italic;
+        color: #AAAAAA;
+      }
+      .homie-property {
+        font-family: "Helvetica Neue",Arial,Helvetica,sans-serif;
+        font-style: bold;
+      }
+      .homie-parameter {
+        font-family: "Helvetica Neue",Arial,Helvetica,sans-serif;
+        font-style: italic;
+        color: #AAAAAA;
+      }
+      .homie-lostFont {
+        color: #80000;
+      }
+      .homie-notReady {
+        color: #AAAAAA;
+      }
+    </style>
+
     <div class="form-row">
       <label for="node-input-name"><i class="icon-tag"></i> Name</label>
       <input type="text" id="node-input-name" placeholder="Name">
@@ -50,6 +65,29 @@
     </div>
 
     <div id="node-config-homie-tabs-content" style="min-height: 170px;">
+
+      <div id="homie-tab-homieTree" style="display:none">
+        <div class="form-tips" style="height: 65px; max-width: none;" id="node-input-homie-treeList-tips">
+          <p>
+            Hover over the items to get detailed information.
+          </p>
+        </div>
+        <div class="form-row" style="margin-bottom:0px;">
+          <label for="node-input-homieTree" style="width: 50%;"><i class="fa fa-server"></i>&nbsp;homie&nbsp;nodes&nbsp;received&nbsp;from&nbsp;broker</label>
+          <input type="hidden" id="node-input-homieTree">
+          <span style="float:right">
+            <input type="checkbox" id="node-input-filterTree" style="display: inline-block; width: auto; vertical-align: top;">
+            <label for="node-input-filterTree">apply&nbsp;filter</label>
+            <button id="node-input-clearSelection" class="red-ui-button red-ui-button-small"><i class="fa fa-times"></i>&nbsp;clear&nbsp;selection</button>
+            <button id="node-input-refreshTree" class="red-ui-button red-ui-button-small"><i class="fa fa-refresh"></i>&nbsp;update</button>
+          </span>
+        </div>
+        <div class="form-row node-treeList-row-homieTree">
+          <div style="height: 200px; min-height:150px;" class="node-homieTree-treeList" id="node-input-homie-homieTree"></div>
+        </div>
+        <div class="form-row node-homie-data-row"></div>
+      </div>
+
       <div id="homie-tab-basic" style="display:none">
         <div class="form-row">
             <label><i class="fa fa-info-circle"></i> Settable</label>
@@ -57,16 +95,24 @@
             <label for="node-input-settable" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> show only <code>$settable==true</code> properties.</label>
         </div>
         <div class="form-row">
-          <label for="node-input-deviceID"><i class="fa fa-crosshairs"></i> Device</label>
+          <label for="node-input-baseID"><i class="fa fa-database"></i> Base</label>
+          <select id="node-input-baseID"></select>
+        </div>
+        <div class="form-row">
+          <label for="node-input-deviceID"><i class="fa fa-microchip"></i> Device</label>
           <select id="node-input-deviceID"></select>
         </div>
         <div class="form-row">
-          <label for="node-input-nodeID"><i class="fa fa-crosshairs"></i> Node</label>
+          <label for="node-input-nodeID"><i class="fa fa-tags"></i> Node</label>
           <select id="node-input-nodeID"></select>
         </div>
         <div class="form-row">
-          <label for="node-input-propertyID"><i class="fa fa-crosshairs"></i> Property</label>
+          <label for="node-input-propertyID"><i class="fa fa-tag"></i> Property</label>
           <select id="node-input-propertyID"></select>
+        </div>
+        <div class="form-row">
+          <label for="node-input-extensionID"><i class="fa fa-plug"></i> Extension</label>
+          <select id="node-input-extensionID"></select>
         </div>
       </div>
 
@@ -84,376 +130,342 @@
         <div class="form-row">
             <label>&nbsp</label>
             <input type="checkbox" id="node-input-infoAttributes" style="display: inline-block; width: auto; vertical-align: top;">
-            <label for="node-input-infoAttributes" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> include <code>msg.attributes</code></label>
+            <label for="node-input-infoAttributes" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> include <code>msg.property</code></label>
         </div>
-      </div>
-
-      <div id="homie-tab-dashboard" style="display:none">
         <div class="form-row">
-          <label for="node-input-uiNode"><i class="fa fa-tachometer"></i> Node</label>
-          <select id="node-input-uiNode">
-            <option value="none">none</option>
-            <option value="uiButton">button</option>
-            <option value="uiButtonSwitch">button as switch</option>
-            <option value="uiChart">chart</option>
-            <option value="uiColor">color picker</option>
-            <option value="uiDropdown">dropdown</option>
-            <option value="uiGauge">gauge</option>
-            <option value="uiNumeric">numeric</option>
-            <option value="uiSlider">slider</option>
-            <option value="uiSwitch">switch</option>
-            <option value="uiText">text</option>
-            <option value="uiTextImput">text imput</option>
-          </select>
+            <label>&nbsp</label>
+            <input type="checkbox" id="node-input-infoMqtt" style="display: inline-block; width: auto; vertical-align: top;">
+            <label for="node-input-infoMqtt" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> include <code>msg.mqtt</code></label>
         </div>
-
-        <div id="node-config-homie-uiOptions">
-
-          <div id="node-config-homie-uiOption-uiDropdown" style="display:none">
-            <div class="form-row">
-              <label for="node-input-uiPlaceName"><i class="fa fa-info"></i> Placeholder</label>
-              <input type="text" id="node-input-uiPlaceName" placeholder="enter placeholder text">
-            </div>
-            <div class="form-row">
-              <label><i class="fa fa-list"></i> ui_control</label>
-              <input type="checkbox" id="node-input-uiControlDropdown" style="display: inline-block; width: auto; vertical-align: top;">
-              <label for="node-input-uiControlDropdown" style="width: 70%;">&nbsp;&nbsp;convert <b>$datatype</b> and <b>$format</b> to <code>msg.ui_control</code></label>
-            </div>
-          </div>
-          
-          <div id="node-config-homie-uiOption-uiMinMax" style="display:none">
-            <div class="form-row">
-              <label><i class="fa fa-sliders"></i> ui_control</label>
-              <input type="checkbox" id="node-input-uiControlMinMax" style="display: inline-block; width: auto; vertical-align: top;">
-              <label for="node-input-uiControlMinMax" style="width: 70%;">&nbsp;&nbsp;convert <b>$format</b> <b>min:max</b> to <code>msg.ui_control</code></label>
-            </div>
-          </div>
-
-          <div id="node-config-homie-uiOption-uiFormat" style="display:none">
-            <div class="form-row">
-              <label><i class="fa fa-sliders"></i> ui_control</label>
-              <input type="checkbox" id="node-input-uiFormat" style="display: inline-block; width: auto; vertical-align: top;">
-              <label for="node-input-uiFormat" style="width: 70%;">&nbsp;&nbsp;use <b>$unit</b> for <b>Format:</b> <code>{{value}} $unit</code></label>
-            </div>
-          </div>
-
-          <div id="node-config-homie-uiOption-uiColorPicker" style="display:none">
-            <div class="form-row">
-              <label for="node-input-uiFormatColor"><i class="fa fa-sliders"></i> Color Format</label>
-              <select id="node-input-uiFormatColor">
-                <option value="homieString">Homie String</option>
-                <option value="nodeRedObject">Node-RED object</option>
-                <option value="nodeRedString">Node-RED string</option>>
-              </select>
-            </div>
-          </div>
-
-          <div id="node-config-homie-uiOption-uiColorButton" style="display:none">
-            <div class="form-row">
-              <label><i class="fa fa-bold"></i> Label</label>
-              <input type="color" id="node-input-uiColor1" class="nr-db-field-themeColor"  style="position:initial;">
-              <label for="node-input-uiColor1" style="width: 70%;">&nbsp;&nbsp;foreground color for icon and text</label>
-            </div>
-            <div class="form-row">
-                <label><i class="fa fa-square"></i> Background</label>
-                <input type="color" id="node-input-uiBgColor1" class="nr-db-field-themeColor"  style="position:initial;">
-                <label for="node-input-uiBgColor1" style="width: 70%;">&nbsp;&nbsp;background color</label>
-            </div>
-          </div>
-
-          <div id="node-config-homie-uiOption-uiColorSwitch" style="display:none"> 
-            <div class="form-row">
-                <label><i class="fa fa-check-square-o"></i> ON</label>
-                <input type="color" id="node-input-uiColorON" class="nr-db-field-themeColor"  style="position:initial;">
-                <label for="node-input-uiColorON" style="width: 70%;">&nbsp;&nbsp;color for <B>true/on</b> state</label>
-            </div>
-            <div class="form-row">
-              <label><i class="fa fa-square-o"></i> OFF</label>
-              <input type="color" id="node-input-uiColorOFF" class="nr-db-field-themeColor"  style="position:initial;">
-              <label for="node-input-uiColorOFF" style="width: 70%;">&nbsp;&nbsp;color for <B>false/off</b> state</label>
-            </div>
-          </div>
-
-          <div id="node-config-homie-uiOption-uiColorPredicted" style="display:none"> 
-            <div class="form-row">
-              <label><i class="fa fa-question-circle-o"></i> predicted</label>
-              <input type="color" id="node-input-uiColorPredicted" class="nr-db-field-themeColor"  style="position:initial;">
-              <label for="node-input-uiColorPredicted" style="width: 1%;">&nbsp;&nbsp</label>
-              <input type="checkbox" id="node-input-uiUseColorPredicted" style="display: inline-block; width: auto; vertical-align: top;">
-              <label for="node-input-uiUseColorPredicted" style="width: 50%;">&nbsp;&nbsp;use color for <b>predicted</b> ON state</label>
-            </div>
-            <div class="form-row">
-              <label><i class="fa fa-question-circle-o"></i></label>
-              <input type="color" id="node-input-uiColorPredictedOff" class="nr-db-field-themeColor"  style="position:initial;">
-              <label for="node-input-uiColorPredictedOff" style="width: 1%;">&nbsp;&nbsp</label>
-              <input type="checkbox" id="node-input-uiUseColorPredictedOff" style="display: inline-block; width: auto; vertical-align: top;">
-              <label for="node-input-uiUseColorPredictedOff" style="width: 50%;">&nbsp;&nbsp;use color for <b>predicted</b> OFF state</label>
-            </div>
-          </div>
-
-          <div id="node-config-homie-uiOption-uiSwitchPredicted" style="display:none"> 
-            <div class="form-row">
-              <label><i class="fa fa-refresh"></i> ui_control</label>
-              <input type="checkbox" id="node-input-uiSwitchPredicted" style="display: inline-block; width: auto; vertical-align: top;">
-              <label for="node-input-uiSwitchPredicted" style="width: 70%;">&nbsp;&nbsp;use predicted state until confirmation received</label>
-            </div>
-          </div>
-
-
-          <div id="node-config-homie-uiOption-uiUseSwitchPredicted" style="display:none"> 
-              <div class="form-row">
-                <label></label>
-                <label for="node-input-uiSwitchColorPredictedON" style="width: 5%;">ON </label>
-                <input type="color" id="node-input-uiSwitchColorPredictedON" class="nr-db-field-themeColor"  style="position:initial;">
-                <label for="node-input-uiSwitchIconPredictedON" style="width: 10%;">&nbsp;&nbsp;Icon</label>
-                <input type="text" id="node-input-uiSwitchIconPredictedON" style="width: 40%;" splaceholder="Material, fa or Weather Icon">
-              </div>
-              <div class="form-row">
-                <label></label>
-                <label for="node-input-uiSwitchColorPredictedOFF" style="width: 5%;">OFF </label>
-                <input type="color" id="node-input-uiSwitchColorPredictedOFF" class="nr-db-field-themeColor"  style="position:initial;">
-                <label for="node-input-uiSwitchIconPredictedOFF" style="width: 10%;">&nbsp;&nbsp;Icon</label>
-                <input type="text" id="node-input-uiSwitchIconPredictedOFF" style="width: 40%;" splaceholder="Material, fa or Weather Icon">
-              </div>
-            </div>
-
-          <div id="node-config-homie-uiOption-uiTooltip" style="display:none">
-            <div class="form-row">
-              <label for="node-input-uiTooltip"><i class="fa fa-info"></i>&nbsp;Tooltip</label>
-              <input type="text" id="node-input-uiTooltip" placeholder="enter tooltip text">
-            </div>
-          </div>
-
-          <div id="node-config-homie-uiOption-uiIcon1" style="display:none">
-            <div class="form-row">
-              <label for="node-input-uiIcon1"><i class="fa fa-info"></i>&nbsp;Icon</label>
-              <input type="text" id="node-input-uiIcon1" placeholder="Material, fa or Weather Icon">
-            </div>
-          </div>
-  
-          <div id="node-config-homie-uiOption-uiIcon2" style="display:none">
-            <div class="form-row">
-              <label for="node-input-uiIconON"><i class="fa fa-info"></i>&nbsp;ON icon</label>
-              <input type="text" id="node-input-uiIconON" placeholder="Material, fa or Weather Icon">
-            </div>
-            <div class="form-row">
-              <label for="node-input-uiIconOFF"><i class="fa fa-info"></i>&nbsp;OFF icon</label>
-              <input type="text" id="node-input-uiIconOFF" placeholder="Material, fa or Weather Icon">
-            </div>
-          </div>
-
-        </div>
-
         <div class="form-row">
-          <label for="node-input-addLabel"><i class="fa fa-tags"></i> <code>msg.label</code></label>
-          <select id="node-input-addLabel">
-             <option value="none">none</option>
-             <option value="name">$name</option>
-             <option value="custom">custom</option>
-             <option value="device">device</option>
-             <option value="node">node</option>
-             <option value="property">property</option>
-             <option value="device/node/property">Device/Node/Property</option>
-             <option value="device/node">Device/Node</option>
-          </select>
-        </div>
-
-        <div id="node-config-homie-labelOptions">
-          <div id="node-config-homie-labelOption-custom" style="display:none">
-            <div class="form-row">
-              <label for="node-input-labelName"><i class="fa fa-label"></i> Custom Label</label>
-              <input type="text" id="node-input-labelName" placeholder="$name if empty">
-            </div>
-          </div>
-        <div id="node-config-homie-labelOption-name" style="display:none">
-          <div class="form-row">
-            <label>&nbsp</label>
-            <input type="checkbox" id="node-input-labelTopic" style="display: inline-block; width: auto; vertical-align: top;">
-            <label for="node-input-labelTopic" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> <code>msg.topic=msg.label</code></label>
-          </div>
-          <div class="form-row">
-            <label>&nbsp</label>
-            <input type="checkbox" id="node-input-labelPayload" style="display: inline-block; width: auto; vertical-align: top;">
-            <label for="node-input-labelPayload" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> <code>msg.payload=msg.label</code></label>
-          </div>
+          <label>&nbsp</label>
+          <input type="checkbox" id="node-input-sendChangesOnly" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-sendChangesOnly" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> emit <b>changed values</b> only</label>
         </div>
       </div>
     </div>
   </div>
-        
-  <div class="form-row node-homie-data-row"></div>
 </script>
 
 <script type="text/javascript">
 
-  var treeList;
+  // resize editor or treeList to fill the remaining space (one editor per tab!)
+  // called by oneditresize & tabs.onchange
+  function resizeTabHD (node, elementId) {
+    if (!node) return;
+
+    // determine remaining vertical space
+    var height = $("#dialog-form").height();
+    var formRows = $("#dialog-form>div:not(#node-config-homie-tabs-content)");
+    for (let i=0; i<formRows.size(); i++) {
+      height -= $(formRows[i]).outerHeight(true);
+    }
+    
+    // resize editors
+    if (node.editors && node.editors.hasOwnProperty(elementId)) {
+      tabRows = $(`#homie-node-tab-${elementId}>div:not(.node-text-editor-row-${elementId})`);
+      for (let i=0; i<tabRows.size(); i++) {
+        height -= $(tabRows[i]).outerHeight(true);
+      }
+      var editorRow = $(`#homie-node-tab-${elementId}>div.node-text-editor-row-${elementId}`);
+      height -= (parseInt(editorRow.css("marginTop")) + parseInt(editorRow.css("marginBottom")));
+      $(".node-text-editor").css("height",height+"px");
+      node.editors[elementId].resize();
+    }
+    // resize treeLists
+    if (node.treeLists && node.treeLists.hasOwnProperty(elementId)) {
+      //resize treeList
+      tabRows = $(`#homie-tab-${elementId}>div:not(.node-treeList-row-${elementId})`);
+      for (let i=0; i<tabRows.size(); i++) {
+        height -= $(tabRows[i]).outerHeight(true);
+      }
+      var editorRow = $(`#homie-tab-${elementId}>div.node-treeList-row-${elementId}`);
+      if (editorRow.length>0) {
+        height -= (parseInt(editorRow.css("marginTop")) + parseInt(editorRow.css("marginBottom")));
+      }
+      $(`.red-ui-treeList`).css("height",height+"px");
+    }
+  }
+
+  // set all tree selections (treeList name, set to true/false)
+  function setTreeSelections(node, treeList, selected = false) {
+
+    function setBranchSelection(branch, selected = false) {
+      for (let entry of branch) {
+        if (entry.hasOwnProperty('selected')) { // only effect entries with having a selected property
+          entry.selected=selected;
+        }
+        if (branch.hasOwnProperty('children')) {
+          setBranchSelection(branch.children, selected)
+        }
+      }
+    }
+
+    if (node.treeLists.hasOwnProperty(treeList)) {
+      setBranchSelection(node.treeLists[treeList].treeList, selected)
+    }
+  }
+
+  //create a treeList instance
+  function createTreeListHD (treeLists,id) {
+    var node = this;
+    if (!treeLists.hasOwnProperty(id)) {
+      treeLists[id]={tempSelection:{}};
+    }
+    treeLists[id].treeList = $("<div>")
+      .css({width: "100%", height: "250px"})
+      .appendTo(".node-"+id+"-treeList")
+      .treeList({})
+      .on('treelistitemmouseover',function(e,item) {
+        if (item.info) {
+          $("#node-input-homie-treeList-tips").html(item.info)
+        }
+      })
+      .on('treelistselect', function(event, item) {
+        var selections = treeLists[id].tempSelection;
+        if (selections && item.id && item.id!=='') {
+          selections[item.id]={selected:item.selected};
+        }
+      });
+    treeLists[id].treeList.treeList('data',[{label:"empty"}]);
+  }
+
+  // merge selections into treeList data
+  function updateTreeListHD(data, selections) {
+    
+    // expandTree upwards
+    function expandTree (dataRoot) {
+      
+      function expandBranch(subChild) {
+        let result;
+        for (let entry of subChild) {
+          if (entry.hasOwnProperty('children')) {
+            if (expandBranch(entry.children)) {
+              entry.expanded=true;
+              result = true; // to be sent to grandparent
+            }
+          }
+          if (entry.selected) {
+            result = true; // to be sent to parent
+          }
+        }
+        return result;
+      }
+
+      expandBranch(dataRoot);
+    }
+    
+    // check branches if they contain selected ids
+    function checkBranch (branchData) {
+      for (var index in branchData) {
+        if (selections.hasOwnProperty(branchData[index].id) && selections[branchData[index].id].selected) {
+          branchData[index].selected = true;
+        }
+        if (branchData[index].hasOwnProperty('children')) {
+          checkBranch(branchData[index].children, selections);
+        }
+      }
+    }
+
+    checkBranch(data);
+    expandTree(data);
+  }
 
   // remember last selection to prevent unnecessary Updates
+  var lastBaseID = '';
   var lastDeviceID = '';
   var lastNodeID = '';
   var lastPropertyID = '';
 
 	function configEditPrepare(node, allowEmpty) {
 
-       function updateProperty(cntrlConfig, valueID, itemName) {
-        if ( cntrlConfig ) {
-          var config = {
-            name: cntrlConfig.name,
-            broker: cntrlConfig.id,
-            // field name to query
-            itemID: valueID,
-            // filters to query
-            deviceID: $('#node-input-deviceID').val(),
-            nodeID: $('#node-input-nodeID').val(),
-            propertyID: $('#node-input-propertyID').val(),
-            queryValueID: valueID
-          }
-          console.log("updateProperty ("+itemName+") = ",cntrlConfig,config);
-          $.getJSON("homieConvention/propertyInfo", config)
-            .done( function(data) {
-              console.log("homieConvention/propertyInfo: "+ JSON.stringify(data));
-            })
-            .fail( function(e1, e2, e3) {
-              console.log("homieConvention/propertyInfo: error e1=" + JSON.stringify(e1));
-              console.log("homieConvention/propertyInfo: error e2=" + JSON.stringify(e2));
-              console.log("homieConvention/propertyInfo: error e3=" + JSON.stringify(e3));
-            });        }
-      }
-      function setColourPickerColour(id, val, ed) {
-                    $("#"+id).val(val);
-                    $("#"+id).css("background-color", val);
-                }
-
-      function updateUiNodeOptions(cntrlConfig, valueID, itemName) {
-        $("#node-config-homie-uiOptions").children().hide();
-        switch(itemName) {
-          case 'uiNumeric':
-            $("#node-config-homie-uiOption-uiMinMax").show();
-            $("#node-config-homie-uiOption-uiFormat").show();
-            break;
-          case 'uiGauge':
-            $("#node-config-homie-uiOption-uiMinMax").show();
-            break;
-          case 'uiSlider':
-            $("#node-config-homie-uiOption-uiMinMax").show();
-            break;
-          case 'uiChart':
-            $("#node-config-homie-uiOption-uiMinMax").show();
-            break
-          case 'uiDropdown':
-            $("#node-config-homie-uiOption-uiDropdown").show();
-            break;
-          case 'uiButton':
-            $("#node-config-homie-uiOption-uiColorButton").show();
-            $("#node-config-homie-uiOption-uiTooltip").show();
-            $("#node-config-homie-uiOption-uiIcon1").show();
-            break;
-          case 'uiButtonSwitch':
-            $("#node-config-homie-uiOption-uiColorButton").show();
-            $("#node-config-homie-uiOption-uiColorSwitch").show();
-            $("#node-config-homie-uiOption-uiColorPredicted").show();
-            $("#node-config-homie-uiOption-uiTooltip").show();
-            $("#node-config-homie-uiOption-uiIcon1").show();
-            break;
-          case 'uiSwitch':
-            $("#node-config-homie-uiOption-uiColorSwitch").show();
-            $("#node-config-homie-uiOption-uiTooltip").show();
-            $("#node-config-homie-uiOption-uiIcon2").show();
-            $("#node-config-homie-uiOption-uiSwitchPredicted").show();
-            if ($('#node-input-uiSwitchPredicted').is(':checked')) $("#node-config-homie-uiOption-uiUseSwitchPredicted").show();
-              else $("#node-config-homie-uiOption-uiUseSwitchPredicted").hide();
-            break;
-          case 'uiText':
-            $("#node-config-homie-uiOption-uiFormat").show();
-            break;
-          case 'uiColor':
-            $("#node-config-homie-uiOption-uiColorPicker").show();
-            break;
+    function updateProperty(cntrlConfig, valueID, itemName) {
+      if ( cntrlConfig ) {
+        var config = {
+          name: cntrlConfig.name,
+          broker: cntrlConfig.id,
+          // field name to query
+          itemID: valueID,
+          // filters to query
+          baseID: $('#node-input-baseID').val() || node.baseID,
+          deviceID: $('#node-input-deviceID').val() || node.deviceID,
+          nodeID: $('#node-input-nodeID').val()  || node.nodeID,
+          propertyID: $('#node-input-propertyID').val() || node.propertyID,
+          extensionID: $('#node-input-extensionID').val() || node.extensionID,
+          queryValueID: valueID
         }
-      };
+        console.log("updateProperty ("+itemName+") = ",cntrlConfig,config);
+        $.getJSON("homieConvention/propertyInfo", config)
+          .done( function(data) {
+            console.log("homieConvention/propertyInfo: "+ JSON.stringify(data));
+          })
+          .fail( function(e1, e2, e3) {
+            console.log("homieConvention/propertyInfo: error e1=" + JSON.stringify(e1));
+            console.log("homieConvention/propertyInfo: error e2=" + JSON.stringify(e2));
+            console.log("homieConvention/propertyInfo: error e3=" + JSON.stringify(e3));
+          });        }
+    }
 
-      function updateUiLabelOptions(cntrlConfig, valueID, itemName) {
-        $("#node-config-homie-labelOptions").children().hide();
-        switch(itemName) {
-          case 'none': break;
-          case 'custom': 
-            $("#node-config-homie-labelOption-" + itemName).show();
-            $("#node-config-homie-labelOption-name").show();
-            break;
-          default: $("#node-config-homie-labelOption-name").show();
-        }
-      };
-
-      function updateItemSelection(cntrlConfig, valueID, itemName) {
-
-        var itemSelectionEl = $('#node-input-'+ valueID);
-        var treeData = [];
-/*
-        itemSelectionEl.multiselect({
-            enableFiltering: true,
-            enableCaseInsensitiveFiltering: true,
-            maxHeight: 300,
-            disableIfEmpty: true,
-            nonSelectedText: 'Select device...',
-            disabledText: 'No items found...'
-        });
-*/        
-        if ( cntrlConfig ) {
-          var config = {
-            name: cntrlConfig.name,
-            broker: cntrlConfig.id,
-            // field name to query
-            itemID: valueID,
-            // filters to query
-            deviceID: $('#node-input-deviceID').val() || node.deviceID,
-            nodeID: $('#node-input-nodeID').val() || node.nodeID,
-            propertyID: $('#node-input-propertyID').val() || node.propertyID,
-            addLabel: $('#node-input-addLabel').val() || node.addLabel,
-            settable: $('#node-input-settable').is(':checked')
-          }
-          
-          console.log("updateItemSelection ("+itemName+") = ",config);
-          $.getJSON("homieConvention/deviceList", config)
-            .done( function(data) {
-              console.log(config.itemID,data);
-              var items = data;
-              if (config.itemID!="treeList") { // fill dropdown list except for treeView updates
-                itemSelectionEl.children().remove();
-
-                items.sort(function(a,b) {
-                  if ( a.name.toLowerCase() < b.name.toLowerCase() )
-                    return -1;
-                  else if ( a.name.toLowerCase() > b.name.toLowerCase() )
-                    return 1;
-                  else
-                    return 0;
-                });
-
-                if (allowEmpty && !(config.settable && valueID=='propertyID')) // only add [any] wildcard if settable filter is not selected and property list is updating
-                  itemSelectionEl.append('<option value="[any]">[any]</option>');
-                items.forEach(function (item) {
-                  itemSelectionEl.append('<option value="'+item.value+'">' + item.name + '</option>');
-//                  var it = itemSelectionEl.find('option').last();
-//                  it.attr('value', item.value);
-                });
-                itemSelectionEl.val(itemName);
-//                itemSelectionEl.multiselect('rebuild');
-              } else { // fill treeList with selected properties
-                treeList.treeList('data',items);
+    function setColourPickerColour(id, val, ed) {
+                  $("#"+id).val(val);
+                  $("#"+id).css("background-color", val);
               }
+
+    function updateUiNodeOptions(cntrlConfig, valueID, itemName) {
+      $("#node-config-homie-uiOptions").children().hide();
+      switch(itemName) {
+        case 'uiNumeric':
+          $("#node-config-homie-uiOption-uiMinMax").show();
+          $("#node-config-homie-uiOption-uiFormat").show();
+          break;
+        case 'uiGauge':
+          $("#node-config-homie-uiOption-uiMinMax").show();
+          break;
+        case 'uiSlider':
+          $("#node-config-homie-uiOption-uiMinMax").show();
+          break;
+        case 'uiChart':
+          $("#node-config-homie-uiOption-uiMinMax").show();
+          break
+        case 'uiDropdown':
+          $("#node-config-homie-uiOption-uiDropdown").show();
+          break;
+        case 'uiButton':
+          $("#node-config-homie-uiOption-uiColorButton").show();
+          $("#node-config-homie-uiOption-uiTooltip").show();
+          $("#node-config-homie-uiOption-uiIcon1").show();
+          break;
+        case 'uiButtonSwitch':
+          $("#node-config-homie-uiOption-uiColorButton").show();
+          $("#node-config-homie-uiOption-uiColorSwitch").show();
+          $("#node-config-homie-uiOption-uiColorPredicted").show();
+          $("#node-config-homie-uiOption-uiTooltip").show();
+          $("#node-config-homie-uiOption-uiIcon1").show();
+          break;
+        case 'uiSwitch':
+          $("#node-config-homie-uiOption-uiColorSwitch").show();
+          $("#node-config-homie-uiOption-uiTooltip").show();
+          $("#node-config-homie-uiOption-uiIcon2").show();
+          $("#node-config-homie-uiOption-uiSwitchPredicted").show();
+          if ($('#node-input-uiSwitchPredicted').is(':checked')) $("#node-config-homie-uiOption-uiUseSwitchPredicted").show();
+            else $("#node-config-homie-uiOption-uiUseSwitchPredicted").hide();
+          break;
+        case 'uiText':
+          $("#node-config-homie-uiOption-uiFormat").show();
+          break;
+        case 'uiColor':
+          $("#node-config-homie-uiOption-uiColorPicker").show();
+          break;
+      }
+    };
+
+    function updateUiLabelOptions(cntrlConfig, valueID, itemName) {
+      $("#node-config-homie-labelOptions").children().hide();
+      switch(itemName) {
+        case 'none': break;
+        case 'custom': 
+          $("#node-config-homie-labelOption-" + itemName).show();
+          $("#node-config-homie-labelOption-name").show();
+          break;
+        default: $("#node-config-homie-labelOption-name").show();
+      }
+    };
+
+    function updateTreeList(node,cntrlConfig) {
+      if (!node.treeLists['homieTree'].updated) {
+        if ( cntrlConfig ) {
+          var config = {
+            name: cntrlConfig.name,
+            broker: cntrlConfig.id,
+            baseId: $('#node-input-baseID').val() || node.baseID,
+            deviceId: $('#node-input-deviceID').val() || node.deviceID,
+            nodeId: $('#node-input-nodeID').val() || node.nodeID,
+            propertyId: $('#node-input-propertyID').val() || node.propertyID,
+            extensionId: $('#node-input-extensionID').val() || node.extensionID,
+            filterTree: $('#node-input-filterTree').is(':checked')
+          }
+          node.treeLists['homieTree'].updated=true;
+          $.getJSON("homieConvention/treeList", config)
+            .done( function(data) {
+              console.log('updateTreeList',data);
+              if (!$('#node-input-filterTree').is(':checked')) {
+                updateTreeListHD(data,node.treeLists['homieTree'].tempSelection)
+              }
+              node.treeLists['homieTree'].treeList.treeList('data',data);
             })
             .fail(function(e1, e2, e3) {
+              node.treeLists['homieTree'].updated=false;
               console.log("error : " + JSON.stringify(e1));
             });
-        } else console.log("Ups, no broker config!:",cntrlConfig);
+          }
+      }
     }
-    
-    console.log("configEditPrepare",node);
-    console.log(" deviceID  : ",$('#node-input-deviceID').val());
-    console.log(" nodeID    : ",$('#node-input-nodeID').val());
-    console.log(" propertyID: ",$('#node-input-propertyID').val());
-    console.log(" settable  : ",$('#node-input-settable').is(':checked'));
-    
+
+    function updateItemSelection(cntrlConfig, valueID, value) {
+
+      var itemSelectionEl = $('#node-input-'+ valueID);
+      var treeData = [];  
+      if ( cntrlConfig ) {
+        var config = {
+          name: cntrlConfig.name,
+          broker: cntrlConfig.id,
+          // field name to query
+          itemID: valueID,
+          // filters to query
+          baseID: $('#node-input-baseID').val() || node.baseID,
+          deviceID: $('#node-input-deviceID').val() || node.deviceID,
+          nodeID: $('#node-input-nodeID').val() || node.nodeID,
+          propertyID: $('#node-input-propertyID').val() || node.propertyID,
+          extensionID: $('#node-input-extensionID').val() || node.extensionID,
+          addLabel: $('#node-input-addLabel').val() || node.addLabel,
+          settable: $('#node-input-settable').is(':checked')
+        }
+        
+        console.log("updateItemSelection ("+valueID+"="+value+") = ",config);
+        $.getJSON("homieConvention/deviceList", config)
+          .done( function(data) {
+            console.log(config.itemID,data);
+            var items = data;
+            if (config.itemID!="treeList") { // fill dropdown list except for treeView updates
+              itemSelectionEl.children().remove();
+              if (allowEmpty && !(config.settable && valueID=='propertyID')) { // only add [any] wildcard if settable filter is not selected and property list is updating
+                itemSelectionEl.append('<option value="[any]">[any]</option>');
+              }
+              if (valueID=='propertyID' || valueID=='extensionID') {
+                itemSelectionEl.append('<option value="[none]">[none]</option>');
+              }
+              items.forEach(function (item) {
+                itemSelectionEl.append('<option value="'+item+'">' + item + '</option>');
+              });
+              console.log(valueID,$('#node-input-'+valueID).val() || node[valueID],value);
+              itemSelectionEl.val($('#node-input-'+valueID).val() || node[valueID]);
+              $('#node-input-'+valueID).change();
+            } else { // fill treeList with selected properties
+              treeList.treeList('data',items);
+            }
+          })
+          .fail(function(e1, e2, e3) {
+            console.log("error : " + JSON.stringify(e1));
+          });
+      } else console.log("Ups, no broker config!:",cntrlConfig);
+    }
+
+    $('#node-input-filterTree').on("click",function() { // apply filter toggled
+      node.treeLists['homieTree'].updated=false;
+      updateTreeList(node,RED.nodes.node($('#node-input-broker').val()));
+    });
+
+    $('#node-input-refreshTree').on("click",function() { // reload Homie Tree
+      node.treeLists['homieTree'].updated=false;
+      updateTreeList(node,RED.nodes.node($('#node-input-broker').val()));
+    });
+
+    $('#node-input-clearSelection').on("click",function() { // reload Homie Tree
+      node.treeLists['homieTree'].tempSelection={};
+      node.treeLists['homieTree'].updated=false;
+      updateTreeList(node,RED.nodes.node($('#node-input-broker').val()));
+    });
+
     setColourPickerColour("node-input-uiColor1", node.uiColor1);
     $('#node-input-uiColor1').change(function(ev) {
       setColourPickerColour("node-input-uiColor1", $('#node-input-uiColor1').val() || node.uiColor1);
@@ -493,57 +505,45 @@
     });
 
 		$('#node-input-broker').change(function(ev) { // update device list if broker is changed (nodes and properties should update subsequently)
-          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'deviceID', $('#node-input-deviceID').val() || node.deviceID);
-          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'nodeID', $('#node-input-nodeID').val() || node.nodeID);
-          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
-          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
+      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'baseID', $('#node-input-baseID').val() || node.baseID);
+      updateTreeList(node,RED.nodes.node($('#node-input-broker').val()));
+		});
+		$('#node-input-baseID').change(function(ev) {
+      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'deviceID', $('#node-input-deviceID').val() || node.deviceID);
+      lastBaseID=$('#node-input-baseID').val();
 		});
 		$('#node-input-deviceID').change(function(ev) {
-          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'nodeID', $('#node-input-nodeID').val() || node.nodeID);
-          if ($('#node-input-nodeID').val()=="[any]"){ // update property list if any node selected
-            updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
-          }
-          if (lastDeviceID!=$('#node-input-deviceID').val()) { // update tree List if Device ID differs.
-            updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
-          }
-          lastDeviceID=$('#node-input-deviceID').val();
+      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'nodeID', $('#node-input-nodeID').val() || node.nodeID);
+      if ($('#node-input-nodeID').val()=="[any]"){ // update property list if any node selected
+        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
+        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'extensionID', $('#node-input-extensionID').val() || node.extensionID);
+      }
+      if (lastDeviceID!=$('#node-input-deviceID').val()) { // update tree List if Device ID differs.
+        // updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
+      }
+      lastDeviceID=$('#node-input-deviceID').val();
 		});
 		$('#node-input-nodeID').change(function(ev) { // update property List if node changes
-          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
-          if (lastNodeID!=$('#node-input-nodeID').val()) { // update tree List if node ID differs.
-            updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
-          }
-          lastNodeID=$('#node-input-nodeID').val();
+      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
+      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'extensionID', $('#node-input-extensionID').val() || node.extensionID);
+      lastNodeID=$('#node-input-nodeID').val();
     });
-    $('#node-input-propertyID').change(function(ev) { // update property List if proptty selected
-          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
+    $('#node-input-propertyID').change(function(ev) { // update property List if property selected
+      // updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
     });
     $('#node-input-uiNode').change(function(ev) { // update uiNode features
-          updateUiNodeOptions(RED.nodes.node($('#node-input-broker').val()),'', $('#node-input-uiNode').val() || node.uiNode);
+      updateUiNodeOptions(RED.nodes.node($('#node-input-broker').val()),'', $('#node-input-uiNode').val() || node.uiNode);
     });
     $('#node-input-addLabel').change(function(ev) { // update uiLabel features
-          updateUiLabelOptions(RED.nodes.node($('#node-input-broker').val()),'', $('#node-input-addLabel').val() || node.addLabel);
+      updateUiLabelOptions(RED.nodes.node($('#node-input-broker').val()),'', $('#node-input-addLabel').val() || node.addLabel);
     });
-    $('#node-input-settable').on("click",function() { // re-update property list if $setable filter setting is changed
-          console.log("click");
-          console.log(" settable  : ",$('#node-input-settable').is(':checked'));
-	        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
-          updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
+    $('#node-input-settable').on("click",function() { // re-update property list if $settable filter setting is changed
+      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
     });
 	}
 
-  function resizeNodeList() {
-        var rows = $("#dialog-form>div:not(.node-homie-data-row)");
-        var height = $("#dialog-form").height();
-        for (var i=0;i<rows.size();i++) {
-            height -= $(rows[i]).outerHeight(true);
-        }
-        var editorRow = $("#dialog-form>div.node-homie-data-row");
-        height -= (parseInt(editorRow.css("marginTop"))+parseInt(editorRow.css("marginBottom")));
-        $(".node-homie-data-row").css("height",height+"px");
-    }
-
   // register homie-convention-device
+  var currentUITab = "";
 
   RED.nodes.registerType('homie-convention-device', {
     category: 'Homie convention',
@@ -553,13 +553,18 @@
     defaults: {
       broker: {value: '', type: 'homie-convention-broker-config', required: true},
       name: {value: ''},
+      baseID: {value: '[any]', required: true},
       deviceID: {value: '[any]', required: true},
       nodeID: {value: '[any]', required: true},
-      propertyID: {value: '[any]', required: true},
+      propertyID: {value: '[none]', required: true},
+      extensionID: {value: '[none]', required: true},
+      selectedNodes: {value: {}},
       topic: {value: ''},
       infoAttributes: {value: true},
       infoTiming: {value: true},
+      infoMqtt: {value: true},
       infoError: {value: true},
+      sendChangesOnly: {value: false},
       addLabel: {value: 'none'},
       labelTopic: {value: false},
       labelPayload: {value: true},
@@ -587,78 +592,114 @@
       uiSwitchIconPredictedON: {value: 'fa-toggle-on'},
       uiSwitchIconPredictedOFF: {value: 'fa-toggle-off'},
       uiFormatColor: {value: 'homieString'},
-      settable: {value: false}
+      settable: {value: false},
+      filterTree: {value: false}
     },
     inputs: 1,
     outputs: 2,
     icon: "Homie-device-logo.svg",
     label: function() {
-      this.topic= this.deviceID;
-      this.topic += '/'+this.nodeID;
-      this.topic += '/'+this.propertyID;
-      return this.name||this.topic||"homie itemp";
-    },
-    oneditprepare: function() {	
-      var tabs = RED.tabs.create({
-            id: "node-config-homie-tabs",
-                onchange: function(tab) {
-                    $("#node-config-homie-tabs-content").children().hide();
-                    $("#" + tab.id).show();
-                }
-            });
-
-            tabs.addTab({
-                id: "homie-tab-basic",
-                label: this._("basic")
-            });
-            tabs.addTab({
-                id: "homie-tab-dashboard",
-                label: this._("dashboard")
-            });
-            tabs.addTab({
-                id: "homie-tab-extra",
-                label: this._("extra")
-            });
-
-      setTimeout(function() { tabs.resize(); },0);
-      
-      treeList = $("<div>")
-            .css({width: "100%", height: "100%"})
-            .appendTo(".node-homie-data-row")
-            .treeList({})
-            .on('treelistitemmouseover',function(e,item) {
-                if (item.node) {
-                    item.node.highlighted = true;
-                    item.node.dirty = true;
-                    RED.view.redraw();
-                }
-            })
-            .on('treelistitemmouseout',function(e,item) {
-                if (item.node) {
-                    item.node.highlighted = false;
-                    item.node.dirty = true;
-                    RED.view.redraw();
-                }
-            });
-      treeList.treeList('data',[{label:"empty"}]);
-      var brokerNodeId = $("#node-input-broker").val();
-
-      if (!brokerNodeId) {
-        	// No config node has been specified, so no use to connect to the server ...
-          return;
+      if (this.filterTree) {
+        this.topic= this.baseID;
+        this.topic += '/'+this.deviceID;
+        this.topic += '/'+this.nodeID;
+        this.topic += '/'+this.propertyID;
+        return this.name||this.topic||"homie itemp";
+      } else {
+        let nodes = [];
+        Object.keys(this.selectedNodes).forEach(node => {
+          if (this.selectedNodes[node].selected) {
+            nodes.push(node);
+          }
+        });
+        if (nodes.length===0) {
+          return "no properties selected";
+        }
+        if (nodes.length===1) {
+          return nodes[0];
+        }
+        return `${nodes.length} properties`;
       }
-
-      configEditPrepare(this, true);
     },
-    oneditresize: resizeNodeList
+    oneditprepare: function() {
+      let node = this;
+      node.editors={};
+      node.treeLists={};
+
+      createTreeListHD(node.treeLists,"homieTree");
+      Object.assign(node.treeLists['homieTree'].tempSelection,node.selectedNodes);
+
+      node.tabs = RED.tabs.create({
+        id: "node-config-homie-tabs",
+          onchange: function(tab) {
+              $("#node-config-homie-tabs-content").children().hide();
+              $("#" + tab.id).show();
+              currentUITab= tab.id.split('-')[2];
+              resizeTabHD(tab.node,currentUITab);
+          }
+      });     
+      node.tabs.addTab({
+        id: "homie-tab-homieTree",
+        node: this,
+        label: this._("homie tree")
+      });
+      node.tabs.addTab({
+        id: "homie-tab-basic",
+        node: this,
+        label: this._("filter")
+      });
+      node.tabs.addTab({
+        id: "homie-tab-extra",
+        node: this,
+        label: this._("extra")
+      });
+      
+      var brokerNodeId = $("#node-input-broker").val();
+      if (!brokerNodeId) {
+        return; // No config node has been specified, so no use to connect to the server ...
+      }
+      configEditPrepare(this, true);
+      setTimeout(function() { node.tabs.resize(); },0);
+    },
+    oneditsave: function() { 
+      let node = this;
+      for (let editorId in node.editors) {
+        $("#node-input-"+editorId).val(node.editors[editorId].getValue());
+        node.editors[editorId].destroy();
+        delete node.editors[editorId];
+      }
+      // save tempSelection
+      if (node.treeLists.hasOwnProperty('homieTree') && node.treeLists.homieTree.hasOwnProperty('tempSelection')) {
+        node.selectedNodes={};
+        Object.keys(node.treeLists.homieTree.tempSelection).forEach(item => {
+          if (node.treeLists.homieTree.tempSelection[item].selected) {
+            node.selectedNodes[item]={selected : true};
+          }
+        })
+      }
+    },
+    oneditcancel: function() {
+      let node = this;
+      for (let editorId in node.editors) {
+        node.editors[editorId].destroy();
+        delete node.editors[editorId];
+      }
+    },
+    oneditresize: function(size) {
+      let node = this;
+      resizeTabHD(node,currentUITab);
+    }
   });
 </script>
 
-<script type="text/x-red" data-help-name="homie-convention-device">
-  <p> <img src="https://homieiot.github.io/img/mqtt_homie.jpg"></img>
+<script type="text/html text/x-red" data-help-name="homie-convention-device">
+  <p> 
+    <a href="https://homieiot.github.io/">
+      <img src="https://homieiot.github.io/img/works-with-homie.png" alt="works with MQTT Homie">
+    </a>
   </p>
   <p>
-    A message is emitted when a specific message for a homie device, node or property arrives. Optionally it sends attribute updates too.
+    A message is emitted when a specific message for a homie device, node or property arrives including property information.
     Use the input to send messages to <i>settable</i> properties. 
   </p>
   <p></p>
@@ -668,75 +709,26 @@
         <li><b>Broker :</b> Select the mqtt broker where your device is sending messages to.</li>
     </ul>
 
-  <h3>basic configuration</h3>
-    <ul>
-      <li><b>Settable :</b> Properties list will only show settable properties.</li>
-      <li><b>Device :</b> Optionally select the device to address. If specified, it filters messages messages from a specific device.</li>
-      <li><b>Node :</b> Optionally select the node to address. If specified, it filters messages messages from a specific device.</li>
-      <li><b>Property :</b> Optionally select the property to address. If specified, the node only emmits updates from a specific property. Necessary for settable properties.</li>
-    </ul>
-
-  <h3>dashboard configuration</h3>
+  <h3>homie tree</h3>
     <p>
-        The homie node can do the configuration of dashboard nodes according to the information provided by the auto-discover functionality.
-        refer to the full documentation for details.
+      All available homie nodes are shown as a collapsible tree view. Select the properties you like to get updates emitted. All sub branches will be emitted.
     </p>
     <ul>
-        <li><b>ui node :</b> select the type of node you like to connect to the output. Individual options will appear. Most of the options are set by using the ui_control object.</li>
-        <li>button</li>
-        <ul>
-          <li><b>Label :</b> Color of the label text</li>
-          <li><b>Background :</b> Background color of the button</li>
-          <li><b>Tooltip :</b> Tooltip if user hoovers over the element. Needs reload of the dashboard to appear.</li>
-        </ul>
-        <li>button as switch</li>
-        <ul>
-            <li><b>Label :</b> Color of the label text</li>
-            <li><b>Background :</b> Background color of the button</li>
-            <li><b>ON :</b> color for true/on state</li>
-            <li><b>OFF :</b> color for false/off state</li>
-            <li><b>predicted ON :</b> check if you want that the button have this color when set to ON until a new state on the input arrives</li>
-            <li><b>predicted OFF :</b> check if you want that the button have this color when set to OFF until a new state on the input arrives</li>
-            <li><b>Tooltip :</b> Tooltip if user hoovers over the element. Needs reload of the dashboard to appear.</li>
-        </ul>
-        <li>chart</li>
-        <ul>
-            <li><b>min max :</b> use $format paramter to set ui_control.max and ui_control.min</li>
-        </ul>
-        <li>color picker</li>
-        <ul>
-            <li><b>format :</b> use $format to set ui_control.format to rgb or hsv</li>
-        </ul>
-        <li>dropdown</li>
-        <ul>
-            <li><b>format :</b> use $format to fill option list</li>
-        </ul>
-        <li>gauge, numeric, slider</li>
-        <ul>
-            <li><b>min max :</b> use $format paramter to set ui_control.max and ui_control.min</li>
-        </ul>
-        <li>switch</li>
-        <ul>
-          <li><b>ON :</b> color for true/on state</li>
-          <li><b>OFF :</b> color for false/off state</li>
-          <li><b>predicted:</b> use predicted state after sending new message until new value received on input</li>
-          <li><b>predicted ON :</b> optional color and icon for ON predicted state</li>
-          <li><b>predicted OFF :</b> optional color and icon for ON predicted state</li>
-          <li><b>Tooltip :</b> Tooltip if user hoovers over the element. Needs reload of the dashboard to appear.</li>
-          <li><b>ON icon:</b> optional icon for true/on state</li>
-          <li><b>OFF icon:</b> optional icon for false/off state</li>
-        </ul>
-        <li>text</li>
-        <ul>
-          <li><b>format :</b> use $unit for <code>{{value}} $unit</code> if available</li>
-        </ul>
-        <li>text input</li>
-        <ul>
-          <li>no ui_control parameters useful</li>
-        </ul>
-
-        <li><b>msg.label :</b> Select add label (i.e. for chart ui node) $name attribute will be used.</li>
+      <li><b>apply filter :</b> Use filer set on the filter tab instead of individual selected propertoes.</li>
+      <li><b>clear selection :</b> clear all selections to easily start over</li>
+      <li><b>update :</b> read latest set of nodes from Node-RED server .</li>
     </ul>
+
+  <h3>filter</h3>
+    <p>
+        The data emitted by the node can be determined by filters instead picking single properties.
+    </p>
+    <ul>
+       <li><b>base :</b> select one particular or any base nodes</li>
+       <li><b>device :</b> select one particular or any device by name</li>
+       <li><b>node :</b> select one particular or any node by name</li>
+       <li><b>property :</b> select one particular or any property by name</li>
+       <li><b>extension :</b> select one particular or any property provided by extensions</li>
 
   <h3>extra configuration</h3>
     <p>
@@ -745,14 +737,16 @@
     <ul>
         <li><b>msg.timing :</b> Select to receive timing information.</li>
         <li><b>msg.error :</b> Select to receive error information. All Errors will be sent on 2nd output</li>
-        <li><b>msg.attributes :</b> Select to receive attributes information.</li>
+        <li><b>msg.property :</b> Select to receive attributes information.</li>
+        <li><b>msg.mqtt :</b> Select to receive additional mqtt information.</li>
+        <li><b>changed values only :</b> Select to receive data only if it differs from previous.</li>
    	 </ul>
 	<p></p>
 
   <h3>Inputs</h3>
     <dl class="message-properties">
         <dt>payload
-            <span class="property-type">number | string | buffer</span>
+            <span class="property-type">number | string</span>
         </dt>
         <dd> the payload of the message to send to the homie device. </dd>
         <dt class="optional">topic <span class="property-type">string</span></dt>
@@ -767,7 +761,7 @@
                  <dd>the standard output of a sucsessfull received update. Depending on the datatype as a String or number.</dd>
 
                  <dt>msg.topic <span class="property-type">string</span></dt>
-                 <dd>Topic of the value: deviceID/nodeID/propertyID.</dd>
+                 <dd>Topic of the value: baseID/deviceID/nodeID/propertyID.</dd>
 
                  <dt>msg.device <span class="property-type">string</span></dt>
                  <dd>Name of the device the message came from</dd>

@@ -6,27 +6,30 @@ module.exports = function (RED) {
     
     this.handleDeviceState = function (state) {
       switch (state) {
-        case 'connected':
-          node.status({ fill: 'green', shape: 'dot', text: 'MQTT connected' });
-          break;
         case 'disconnected':
           node.status({ fill: 'red', shape: 'ring', text: 'MQTT disconnected' });
           node.startupSent = false;
+          break;
+        default:
+          node.status({ fill: 'green', shape: 'dot', text: state });
           break;
       }
     };
 
     this.log = {};
     this.broker = RED.nodes.getNode(config.broker);
-    this.deviceID = config.deviceID;
-    this.nodeID=config.nodeID;
-    this.propertyID=config.propertyID;
+    this.baseID = config.baseID || '[any]';
+    this.deviceID = config.deviceID || '[any]';
+    this.nodeID=config.nodeID || '[any]';
+    this.propertyID=config.propertyID || '[any]';
+    this.extensionID=config.extensionID || '[none]';
+    this.selectedNodes = config.selectedNodes || {};
+    this.filterTree = config.filterTree || false;
     this.infoError=config.infoError; // include Error messages
     this.infoAttributes=config.infoAttributes; // include Attribute information
     this.infoTiming=config.infoTiming; // include Timing messages
-    this.addLabel=config.addLabel; // include msg.label 
-    this.labelTopic=config.labelTopic; // msg.topic = msg.label
-    this.labelPayload=config.labelPayload; // msg.payload = msg.label
+    this.infoMqtt=config.infoMqtt; // include MQTT messages
+    this.sendChangesOnly=config.sendChangesOnly; // include Timing messages
     this.uiPlaceName = config.uiPlaceName; // Placeholder Text for uiDropdown
     this.uiControlDropdown=config.uiControlDropdown; // convert $format to msg.options for uiDropdown
     this.uiNode=config.uiNode; // type of node connected to
@@ -101,146 +104,17 @@ module.exports = function (RED) {
     }
 
     // ------------------------------------------
-    // add ui control attributes
-    // ------------------------------------------
-    
-    this.addUiControl = function (msgOut) {
-      var errorMsg='';
-      property=node.broker.homieData[msgOut.deviceId][msgOut.nodeId][msgOut.propertyId];
-      if (property===undefined) {
-        msgOut.error={"status":"error"};
-        msgOut.error.errorText="addUIControl: property not found!";
-        return false;
-      };
-      switch(node.uiNode) {
-        case 'uiColor':
-            errorMsg= node.formatColor(property,msgOut.payload,msgOut);
-            if (errorMsg!='') {
-              msgOut.error={"status":"error"};
-              msgOut.error.errorText="Color formatting failed (" + errorMsg + ")";
-            }
-            break;
-        case 'uiText':
-            if (node.uiFormat) {
-              if (property.$unit) {
-                if (!msgOut.ui_control) msgOut.ui_control={};
-                msgOut.ui_control.format="{{msg.payload}} "+property.$unit;
-              } else {
-                msgOut.error={"status":"warning"};
-                msgOut.error.errorText="addUIControl:uiText Property " + property.$name + " has no $unit defined!";
-              }
-            }
-            break;
-        case 'uiNumeric':
-            if (node.uiFormat) {
-              if (property.$unit) {
-                if (!msgOut.ui_control) msgOut.ui_control={};
-                msgOut.ui_control.format="{{msg.value}} "+property.$unit;
-              } else {
-                msgOut.error={"status":"warning"};
-                msgOut.error.errorText="addUIControl:uiSlider/uiNumeric Property " + property.$name + " has no $unit defined!";
-              }
-            }
-            // no break because uiNumeric can use min:max too
-        case 'uiSlider':
-                if (node.uiControlMinMax) {
-                  if (property.$format) {
-                    var formatValues = property.$format.split(':');
-                    if (formatValues.length==2) {
-                      msgOut.ui_control={};
-                      msgOut.ui_control.min=Number(formatValues[0]);
-                      msgOut.ui_control.max=Number(formatValues[1]);
-                    } else {
-                      msgOut.error={"status":"warning"};
-                      msgOut.error.errorText="addUIControl:uiSlider Property " + property.$name + " has no proper $format defined ("+property.$format+")";
-                    }
-                  } else {
-                    msgOut.error={"status":"warning"};
-                    msgOut.error.errorText="addUIControl:uiSlider Property " + property.$name + " has no $format defined!";
-                  }
-                }
-                break;
-        case 'uiDropdown':
-                  msgOut.ui_control={"options":[]};
-                  msgOut.ui_control.place = node.uiPlaceName;
-                  msgOut.ui_control.label = msgOut.label;
-                  if(property.$datatype=='enum') { // include options for drop down UI elemnts using ui_control parameters for ui_dropdown
-                    property.$format.split(",").forEach(function(element){
-                      msgOut.ui_control.options.push({"label":element, "value": element, "type":"str"});
-                    });
-                  }
-                  break;
-        case 'uiButton':
-                  msgOut.ui_control={"color":node.uiColor1};
-                  msgOut.ui_control.bgcolor=node.uiBgColor1;
-                  msgOut.ui_control.icon=node.uiIcon1;
-                  msgOut.ui_control.tooltip=node.uiTooltip;
-                  break;
-        case 'uiButtonSwitch':
-                  msgOut.ui_control={"color":node.uiColor1};
-                  msgOut.ui_control.bgcolor=node.uiBgColor1;
-                  if (msgOut.hasOwnProperty("payload") && property.hasOwnProperty("$datatype") && property.hasOwnProperty("$format")) {
-                    switch(property.$datatype){
-                      case 'boolean':
-                      case 'enum':
-                        var enumValues = property.$format.split(',');
-                        if ((typeof msgOut.payload=="boolean" && !msgOut.payload) || msgOut.payload==enumValues[0]) { // OFF state
-                          if (msgOut.predicted && node.uiUseColorPredictedOff) msgOut.ui_control.bgcolor=node.uiColorPredictedOff;
-                            else msgOut.ui_control.bgcolor=node.uiColorOFF;
-                        } else if ((typeof msgOut.payload=="boolean" && msgOut.payload) || msgOut.payload==enumValues[1]) { // ON state
-                          if (msgOut.predicted && node.uiUseColorPredicted) msgOut.ui_control.bgcolor=node.uiColorPredicted;
-                            else msgOut.ui_control.bgcolor=node.uiColorON;
-                        } else { // error
-                          msgOut.error={'status':'error'};
-                          msgOut.error.errorText="uiButtonSwitch for enum property "+msgOut.topic+". $format="+property.$format+". msg.payload="+msgOut.payload+" does not match first two opitions! No output";
-                          node.send([null,msgOut.error]);
-                        }
-                        break;
-                    }
-                  }
-                  msgOut.ui_control.icon=node.uiIcon1;               
-                  msgOut.ui_control.tooltip=node.uiTooltip;
-                  break;
-        case 'uiSwitch':
-                  msgOut.ui_control={'tooltip':node.uiTooltip};
-                  if (typeof msgOut.payload != "boolean") {
-                    msgOut.payload = (msgOut.value==0) ? msgOut.payload=false : msgOut.payload=true;
-                  }
-                  if (node.uiIconON.length>0 || node.uiIconOFF.length>0) {
-                    msgOut.ui_control.oncolor=node.uiColorON;
-                    msgOut.ui_control.offcolor=node.uiColorOFF;
-                    msgOut.ui_control.onicon=node.uiIconON;
-                    msgOut.ui_control.officon=node.uiIconOFF;
-                  }
-                  if (node.uiSwitchPredicted) {
-                    if (msgOut.predicted) { // enter predicted state
-                      msgOut.ui_control.oncolor=node.uiSwitchColorPredictedON;
-                      msgOut.ui_control.offcolor=node.uiSwitchColorPredictedOFF;
-                      msgOut.ui_control.onicon=node.uiSwitchIconPredictedON;
-                      msgOut.ui_control.officon=node.uiSwitchIconPredictedOFF;
-                    } else { // exit predicted state
-                      msgOut.ui_control.oncolor="";
-                      msgOut.ui_control.offcolor="";
-                      msgOut.ui_control.onicon="";
-                      msgOut.ui_control.officon="";
-                    }
-                  } 
-                break;
-      }
-    };
-
-    // ------------------------------------------
     // send startup messages
     // ------------------------------------------
 
-    this.startupMessages = function (validatedDevice,validatedNode,validatedProperty) {
+    this.startupMessages = function (validatedBase, validatedDevice, validatedNode, validatedProperty) {
       
-      var sendProperty = function (currentDevice,currentNode,currentProperty) {
+      var sendProperty = function (currentBase, currentDevice, currentNode, currentProperty) {
         if (node.uiNode=="none" && node.addLabel=="none") return false; // no startup messages necessary
         var msgOut = {};
-        var homieDevice= node.broker.homieData[currentDevice];
+        var homieDevice= node.broker.homieData[currentBase][currentDevice];
         if (!homieDevice) {
-          node.addToLog("error","startupMessages:sendProperty:"+currentDevice+"/"+currentNode+"/"+currentProperty+" failed!");
+          node.addToLog("error","startupMessages:sendProperty:"+currentBase+"/"+currentDevice+"/"+currentNode+"/"+currentProperty+" failed!");
           return false;
         }
         if (homieDevice[currentNode]!==undefined) {
@@ -248,10 +122,11 @@ module.exports = function (RED) {
           if (homieNode[currentProperty]!==undefined) {
             var homieProperty=homieNode[currentProperty];
             if (homieProperty.$datatype!==undefined) {
-              node.addToLog("info","startupMessages:sendProperty:"+currentDevice+"/"+currentNode+"/"+currentProperty);
+              node.addToLog("info","startupMessages:sendProperty:"+currentBase+"/"+currentDevice+"/"+currentNode+"/"+currentProperty);
  
               // prepare startup message
               msgOut={"msgType":"startup",
+                      "baseId": currentBase, 
                       "deviceId": currentDevice, 
                       "nodeId": currentNode,
                       "propertyId": currentProperty,
@@ -261,19 +136,13 @@ module.exports = function (RED) {
               if (!msgOut.deviceName ||
                   !msgOut.nodeName ||
                   !msgOut.propertyName) return;        
-              node.prepareMsgOut(msgOut);
 
               // add ui controls
               if (node.uiNode!="none") node.addUiControl(msgOut);
 
               if (homieProperty.payload) msgOut.payload = homieProperty.payload;
               if (homieProperty.value) msgOut.value = homieProperty.value;
-
-              // prepare Label
-              if (node.addLabel=="name") msgOut.label= homieProperty.$name;
-              if (node.labelPayload) msgOut.payload=msgOut.label;
-              if (node.labelTopic) msgOut.topic=msgOut.label;
-              
+            
               node.sendLogs();
 
               // send startup message;
@@ -285,43 +154,45 @@ module.exports = function (RED) {
         }
       }
 
-      var sendNode = function (currentDevice,currentNode,currentProperty) {
-        var homieDevice= node.broker.homieData[currentDevice];
+      var sendNode = function (currentBase, currentDevice,currentNode,currentProperty) {
+        var homieDevice= node.broker.homieData[currentBase][currentDevice];
         if (homieDevice!==undefined) {
           var homieNode=homieDevice[currentNode];
           if (currentProperty=='[any]') { // check all properties if startup messages to be send
             for (var propertyName in homieNode) {
-              sendProperty(currentDevice,currentNode,propertyName);
+              sendProperty(currentBase, currentDevice,currentNode,propertyName);
             } // single property
-          } else sendProperty(currentDevice,currentNode,currentProperty);
+          } else sendProperty(currentBase, currentDevice,currentNode,currentProperty);
         }      
       }
 
-      var sendDevice = function (currentDevice,currentNode,currentProperty) {
-        var homieDevice= node.broker.homieData[currentDevice];
-        if (homieDevice!==undefined && homieDevice.itemList!==undefined) {
+      var sendDevice = function (currentBase, currentDevice,currentNode,currentProperty) {
+        var homieDevice= node.broker.homieData[currentBase][currentDevice];
+        if (homieDevice!==undefined && homieDevice._itemList!==undefined) {
           if (currentNode=='[any]') { // check all nodes if they contain properties with startup messages to be send
-            for (var nodeName in homieDevice.itemList) {
-              sendNode(currentDevice,homieDevice.itemList[nodeName].value,currentProperty);
+            for (var nodeName in homieDevice._itemList) {
+              sendNode(currentBase, currentDevice,homieDevice._itemList[nodeName].value,currentProperty);
             } // single Node
-          } else sendNode(currentDevice,currentNode,currentProperty);
+          } else sendNode(currentBase, currentDevice,currentNode,currentProperty);
         }      
       }
 
-      if (node.broker===undefined || node.broker.homieData===undefined || node.broker.homieData[validatedDevice]===undefined) { //|| node.broker.homieData[validatedDevice].itemList===undefined
+      if (node.broker===undefined || node.broker.homieData===undefined || node.broker.homieData[validatedBase]===undefined || node.broker.homieData[validatedBase][validatedDevice]===undefined) { //|| node.broker.homieData[validatedDevice]._itemList===undefined
         node.addToLog("error","startupMessages(node) homieData not found. "+validatedDevice);
       } else {
         if (validatedProperty) { // send for single property
-          sendProperty(validatedDevice,validatedNode,validatedProperty);
+          sendProperty(validatedBase, validatedDevice,validatedNode,validatedProperty);
         } else if (node.deviceID=='[any]') { // loop through devices
-          for (var deviceName in node.broker.homieData) { // send to first match
-           if (validatedDevice==deviceName) {
-             sendDevice(deviceName,node.nodeID,node.propertyID);
-             break;
-           }
+          for (var baseName in node.broker.homieData) {
+            for (var deviceName in node.broker.homieData[baseName]) { // send to first match
+              if (validatedDevice==deviceName) {
+                sendDevice(baseName,deviceName,node.nodeID,node.propertyID);
+                break;
+              }
+            }
           }
         } else { // single Device
-          if (validatedDevice==node.deviceID) sendDevice(node.deviceID,node.nodeID,node.propertyID);
+          if (validatedDevice==node.deviceID) sendDevice(node.baseID,node.deviceID,node.nodeID,node.propertyID);
         }
       }
       node.sendLogs();
@@ -496,6 +367,8 @@ module.exports = function (RED) {
                       }
                       if (property.$datatype=='integer') msgOut.payload=Math.floor(msgOut.payload); // convert to Integer
                       break;
+                    case ('datetime'):
+                    case ('duration'):
                     case ('string'):
                       msgOut.payload=msg.payload;
                       break;
@@ -604,16 +477,16 @@ module.exports = function (RED) {
 
         // FIRST send unaltered data to mqtt broker!
         if (property.$settable) setFlag=true; 
-        if (msgOut.homiePayload) node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.homiePayload,setFlag); // If a special homie payload exists send this one.
-        else  node.broker.sendToDevice(msgOut.device,msgOut.node,msgOut.property,msgOut.payload,setFlag);
+        if (msgOut.homiePayload) node.broker.sendToDevice(msgOut.base,msgOut.device,msgOut.node,msgOut.property,msgOut.homiePayload,setFlag); // If a special homie payload exists send this one.
+        else  node.broker.sendToDevice(msgOut.base,msgOut.device,msgOut.node,msgOut.property,msgOut.payload,setFlag);
         return;
 
       }
 
       var sendByDevice = function (device) {
         if(msgOut.node=="[any]") { // include [any] node. loop through nodes
-          for (var i=0; i<device.itemList.length; i++) {
-            homieNode=device.itemList[i];
+          for (var i=0; i<device._itemList.length; i++) {
+            homieNode=device._itemList[i];
             sendToProperty(homieNode);
           }
         } else {
@@ -624,51 +497,55 @@ module.exports = function (RED) {
       }
       
       node.addToLog("debug","Message arrived! topic="+msg.topic+" payload="+msg.payload);
-      if (msg.topic && msg.topic!=="") { // topic specified = try to use this
-        splitted = msg.topic.split('/');
-        setFlag = (splitted[splitted.length-1]=="set");
-        if (setFlag) {
-          splitted.pop();
-        }
-        switch (splitted.length) {
-          case 1: 
-            msgOut.device = node.deviceID;
-            msgOut.node = node.nodeID;
-            msgOut.property = splitted[0];
-            break;
-          case 2: 
-            msgOut.device = node.deviceID;
-            msgOut.node = splitted[0];
-            msgOut.property = splitted[1];
-            break;
-          case 3:
-            msgOut.device = splitted[0];
-            msgOut.node = splitted[1];
-            msgOut.property = splitted[2];
-            break;
-        }
-      } else { // no topic specified = use node settings
-        msgOut.device = node.deviceID;
-        msgOut.node = node.nodeID;
-        msgOut.property = node.propertyID;
+      if (!msg.hasOwnProperty('topic)')) {
+        msg.topic="";
       }
-      node.prepareMsgOut(msgOut);
+      splitted = msg.topic.split('/');
+      setFlag = (splitted[splitted.length-1]=="set");
+      if (setFlag) {
+        splitted.pop();
+      }
+      if (msg.topic==="") {
+        Object.keys(node.selectedNodes).forEach(key => {
+          splitted = key.split('/'); 
+          msgOut.property = (splitted.length===0) ? node.propertyID : splitted.pop();
+          msgOut.node = (splitted.length===0) ? node.nodeID : splitted.pop();
+          msgOut.device = (splitted.length===0) ? node.deviceID : splitted.pop();
+          msgOut.base = (splitted.length===0) ? node.baseID : splitted.pop();
+          device = node.broker.homieData[msgOut.base][msgOut.device];
+          if (device!==undefined) {
+            sendByDevice(device);
+          } else {
+            msgError.error = "Device "+msgOut.base+"/"+msgOut.device+" not found. No output"
+            node.send([null,msgError]);
+            return;  
+          }
+        });
+        return;
+      } else {
+        msgOut.property = (splitted.length===0) ? node.propertyID : splitted.pop();
+        msgOut.node = (splitted.length===0) ? node.nodeID : splitted.pop();
+        msgOut.device = (splitted.length===0) ? node.deviceID : splitted.pop();
+        msgOut.base = (splitted.length===0) ? node.baseID : splitted.pop();
+      }
       if (msgOut.property == '[any]') {
         msgError.error = "Wildcards are not allowed for /set properties! Received: "+msg.topic+". No output"
         node.send([null,msgError]);
         return;
       }
-      if (msgOut.device=="[any]") { // Include [any] device. loop through devices
-        for (var deviceName in node.broker.homieData) {
-          device=node.broker.homieData[deviceName];
-          sendByDevice(device);
+      if (msgOut.base=="[any]" || msgOut.device=="[any]") { // Include [any] device. loop through devices
+        for (var baseName in node.broker.homieData) {
+          for (var deviceName in node.broker.homieData[baseName]) {
+            device=node.broker.homieData[baseName][deviceName];
+            sendByDevice(device);
+          }
         }
       } else {
-        device = node.broker.homieData[msgOut.device];
+        device = node.broker.homieData[msgOut.base][msgOut.device];
         if (device!==undefined) {
           sendByDevice(device);
         } else {
-          msgError.error = "Device "+msgOut.device+" not found. No output"
+          msgError.error = "Device "+msgOut.base+"/"+msgOut.device+" not found. No output"
           node.send([null,msgError]);
           return;  
         }
@@ -676,340 +553,446 @@ module.exports = function (RED) {
 
     });
 
-    // fill output message with common values
-    this.prepareMsgOut = function(msgOut) {
-      msgOut.label = msgOut.deviceName;
-      switch (node.addLabel) {
-        case 'custom':  
-          msgOut.label = node.labelName;
-          break;
-        case 'device': msgOut.label = msgOut.deviceName;
-          break;
-        case 'node': msgOut.label = msgOut.nodeName;
-          break;
-        case 'property':  msgOut.label = msgOut.propertyName;
-          break;
-        case 'device/node': msgOut.label = msgOut.deviceName+"/"+msgOut.nodeName;
-          break;
-        case 'device/node/property': msgOut.label = msgOut.deviceName+"/"+msgOut.nodeName+"/"+msgOut.propertyName;
-          break;
-      }
-      if (node.labelTopic) msgOut.topic=msgOut.label;
-        else msgOut.topic = msgOut.deviceId+"/"+msgOut.nodeId+"/"+msgOut.propertyId;
-    }
-
     // Format output Message
-    this.broker.on('message', function (msgOut) {
-      var log = "homie message arrived ("+node.deviceID+"/"+node.nodeID+"/"+node.propertyID+"):";
-      if (msgOut===undefined) return;
-      if (node.deviceID=='[any]' || node.deviceID===msgOut.deviceId) {
-        log += " " + node.deviceID + "=" + msgOut.deviceId;
-        if (node.nodeID=='[any]' || node.nodeID===msgOut.nodeId) {
-          log += " " + node.nodeID + "=" + msgOut.nodeId;
-          if (node.propertyID=='[any]' || node.propertyID==msgOut.propertyId) {
-            log += " " + node.propertyID + "=" + msgOut.propertyId + " payload=" + msgOut.payload;
-            switch(msgOut.error.status) {
-              case 'error': node.status({ fill: 'red', shape: 'dot', text: msgOut.error.errorText});
-                            break;
-              case 'warning': node.status({ fill: 'yellow', shape: 'dot', text: msgOut.error.errorText});
-                            break;
-              case 'ok': if (!node.infoAttributes) {
-                            node.status({ fill: 'green', shape: 'dot', text: msgOut.topic + '=' + msgOut.payload});
-                          } else {
-                            node.status({ fill: 'green', shape: 'dot', text: '#' + msgOut.timing.msgCounter + ' (' + Math.floor(msgOut.timing.interval/1000) + 's) '+ msgOut.topic + '=' + msgOut.payload});
-                          }
-                          break;
+    this.broker.on('message', function (msg, send, done) {
+      send = send || function() { node.send.apply(node,arguments) }
+      if (msg===undefined) {
+        if (done) done();
+        return;
+      }
+      if (node.filterTree) {
+        if (node.baseID!=='[any]' && node.baseID!==msg.baseID) {
+          if (done) done();
+          return;          
+        };
+        if (node.deviceID!=='[any]' && node.deviceID!==msg.deviceId) {
+          if (done) done();
+          return;      
+        }
+        if (node.nodeID!=='[any]' && node.nodeID!==msg.nodeId) {
+          if (done) done();
+          return;              
+        }
+      
+        switch (msg.typeId) {
+          case 'homieData':
+            if (node.propertyID!=='[any]' && node.propertyID!==msg.propertyId) {
+              if (done) done();
+              return;
             }
-            if (msgOut.error.status!=='error') node.addUiControl(msgOut); // only add UI controls if there was NO error
-            node.prepareMsgOut(msgOut);
-
-            if (!msgOut.topic) return;
-            if (!node.infoTiming) delete msgOut.timing;
-            if (!node.infoAttributes) delete msgOut.attributes;
-            if (!node.infoError && msgOut.error.status==='ok') delete msgOut.error;
-            // console.log("broker.on",msgOut);
-            if (msgOut.error===undefined || msgOut.error.status!=='error') node.send([msgOut,null]);
-              else node.send([null,msgOut]); // send error Message only.
-            node.addToLog("trace",log);
+            break;
+          case 'homieProperty':
+            if (node.propertyID!=='[any]' && node.propertyID!==msg.propertyId) {
+              if (done) done();
+              return;              
+            }
+            break;
+          case 'homieAttribute':
+            if (node.extensionID!=='[any]') {
+              if (done) done();
+              return;  
+            }
+            break;
+          case 'homieExtension':
+            if (node.extensionID!=='[any]' && node.extensionID!==msg.extensionId) {
+              if (done) done();
+              return;  
+            }
+            break;
           }
+      } else {
+        if (!Object.keys(node.selectedNodes).find(element => msg.topic.startsWith(element))) {
+          if (done) done();
+          return;
+        }
+        if (msg.hasOwnProperty('propertyId') && msg.propertyId.startsWith('$')) {
+          if (done) done();
+          return;          
         }
       }
+
+      if (node.sendChangesOnly && (msg.property.value === msg.property.valueBefore)) {
+        if (done) done();
+        return;
+      }
+      
+      switch(msg.error.status) {
+        case 'error': node.status({ fill: 'red', shape: 'dot', text: msg.error.errorText});
+                      break;
+        case 'warning': node.status({ fill: 'yellow', shape: 'dot', text: msg.error.errorText});
+                      break;
+        case 'ok': if (!node.infoTiming) {
+                      node.status({ fill: 'green', shape: 'dot', text: msg.topic + '=' + msg.payload});
+                    } else {
+                      if (!msg.timing.messages) {
+                        node.status({ fill: 'green', shape: 'dot', text: msg.topic + '=' + msg.payload});
+                      } else {
+                        node.status({ fill: 'green', shape: 'dot', text: '#' + msg.timing.messages.counter + ' (' + Math.floor(msg.timing.messages.interval/1000) + 's) '+ msg.topic + '=' + msg.payload});
+                      }
+                    }
+                    break;
+      }
+
+      if (!msg.topic) {
+        if (done) done();
+        return;
+      }
+
+      if (!node.infoTiming) delete msg.timing;
+      if (!node.infoAttributes) delete msg.property;
+      if (!node.infoMqtt) delete msg.mqtt;
+      if (!node.infoError && msg.error.status==='ok') delete msg.error;
+      if (msg.error===undefined || msg.error.status!=='error') {
+        send([msg,null]);
+      } else {
+        send([null,msg]); // send error Message only.
+      }
+      if (done) done();
     });
+
   }
 
   RED.nodes.registerType('homie-convention-device', homieDevice);
 
   // callback functions
 
-  RED.httpAdmin.get("/homieConvention/deviceList", RED.auth.needsPermission('homie-convention-device.read'), function(req,res) {
-    var devices = []; // list of Items to send back to the frontend
+  RED.httpAdmin.get("/homieConvention/treeList", RED.auth.needsPermission('homie-convention-device.read'), function(req,res) {
     var config = req.query;
-    if (typeof config.settable=="string") config.settable=(config.settable==="true"); // sometimes config.settable comes as a string
-    var device = {}; 
-    var node = {};
-    var property = {};
-    var propertySettable = false;
     var broker = RED.nodes.getNode(config.broker);
+    var treeList = [];
+    var path = '';
+    if (typeof config.filterTree=="string") config.filterTree=(config.filterTree==="true");
 
-    var addItemToList = function (item) {
-      if (config.itemID!='treeList') { // ignore duplicates except for tree list
-        for (var i=0; i<devices.length; i++) { // filter duplicate items.
-          if (devices[i].name==item.name) return;
-        }
-      } else { // fill tree list
-//        var objectIds= broker.getAllIDs(device.deviceId,node.$name,item.name);
-        broker.validateHomie('property',device.deviceId,node.nodeId,property.propertyId,false);
-        // config.addToLog("debug","addItemToList treeList Property : "+property.$name);
-        item.class= 'palette-header';
-        item.label="";
-        if (!device.validated) item.label+=device.$name+"(?)/";
-          else item.label+=device.$name+"/";
-        if (!node.validated) item.label+=node.$name+"(?)/";
-          else item.label+=node.$name+"/";
-        if (!property.validated) item.label+=property.$name+"(?)";
-          else item.label+=property.$name;
-
-        item.children=[];
-        item.children.push({label: "$type :"+ (node.$type || "n/a"), icon: "fa fa-cogs"});
-        item.children.push({label: "$settable : "+ (property.$settable || false), icon: "fa fa-bolt"});
-        item.children.push({label: "$datatype : "+ (property.$datatype || "string"), icon: "fa fa-edit"});
-        item.children.push({label: "$format : "+ (property.$format || "n/a"), icon: "fa fa-paint-brush"});
-        item.children.push({label: "$unit : "+ (property.$unit || "n/a"), icon: "fa fa-thermometer-half"});
-        item.children.push({label: "$name : "+ (property.$name || "n/a"), icon: "fa fa-info"});
-        item.children.push({label: "message : "+ (property.message || "n/a"), icon: "fa fa-envelope"});
-        item.children.push({label: "payload : "+ (property.payload || "n/a"), icon: "fa fa-envelope-open-o"});
-        item.children.push({label: "value : "+ (property.value || "n/a"), icon: "fa fa-envelope-open"});
-        if (!device.validated)
-          item.children.push({label: "device validation : "+ (device.validationError || "n/a"), icon: "fa fa-bomb"});
-        if (!node.validated)
-          item.children.push({label: "node validation : "+ (node.validationError || "n/a"), icon: "fa fa-bomb"});
-        if (!property.validated)
-          item.children.push({label: "property validation : "+ (property.validationError || "n/a"), icon: "fa fa-bomb"});
-        item.icon="";
-        switch(property.$datatype) {
-          case 'integer':
-              item.icon+="fa fa-signal"
-              break;
-          case 'float':
-              item.icon+="fa fa-sliders";
-              break;
-          case 'boolean':
-              item.icon+="fa fa-toggle-on";
-              break;
-          case 'string':
-              item.icon+="fa fa-text";
-              break;
-          case 'enum':
-              item.icon+="fa fa-list-ol";
-              break;
-          case 'color':
-              item.icon="fa fa-palette";
-              break;
-        }
-        item.children[2].icon = item.icon;
-        if (property.$settable) item.icon="fa fa-bolt ";
-        if (!device.validated) item.icon="fa fa-bomb";
-      }
-      devices.push(item);
-    }
-    var addExtensionItemToList = function (item) {
-      if (config.itemID!='treeList') { // ignore duplicates except for tree list
-        for (var i=0; i<devices.length; i++) { // filter duplicate items.
-          if (devices[i].name==item.name) return;
-        }
-      } else { // fill tree list
-        item.class= 'palette-header';
-        item.label=device.$name+"/"+item.name;
-
-        item.children=[];
-        item.children.push({label: "extension :"+ item.name.substr(0,item.name.indexOf('/')), icon: "fa fa-cogs"});
-        item.children.push({label: "property :"+ item.value, icon: "fa fa-info"});
-        item.children.push({label: "payload : "+ (node[item.value] || "n/a"), icon: "fa fa-envelope-open-o"});
-
-  	    item.icon="fa fa-bolt ";
-      }
-      devices.push(item);
-    }
-
-    var addExtensionPropertyToList = function (item) {
-      if (config.itemID!='treeList') { // ignore duplicates except for tree list
-        for (var i=0; i<devices.length; i++) { // filter duplicate items.
-          if (devices[i].name==item.name) return;
-        }
-        addExtensionItemToList(item);
-      } else { // for treeList filter selected property
-        if (config.propertyID=='[any]' || config.propertyID==item.value) { // [any] property or property name matches
-          addExtensionItemToList(item);
-        }
-      }
-    }
-    
-    var addPropertyToList = function (item) {
-      property=node[item.value];
-      if (!property.$settable) propertySettable = false;
-        else propertySettable=property.$settable;
-      if (typeof config.settable=="string") config.settable=(config.settable==="true");
-      // config.addToLog("debug","addPropertyToList : "+config.settable+"("+typeof config.settable+") : "+propertySettable+" : "+item.name);
-      if (config.itemID!='treeList') { // ignore duplicates except for tree list
-        for (var i=0; i<devices.length; i++) { // filter duplicate items.
-          if (devices[i].name==item.name) return;
-        }
-        if (config.settable==false) addItemToList(item); // $settable filter not set
-          else if (propertySettable) addItemToList(item); // match properties with $settable flag set 
-      } else { // for treeList filter selected property
-        if (config.propertyID=='[any]' || config.propertyID==item.value) { // [any] property or property name matches
-          if (config.settable==false) addItemToList(item); // $settable filter not set
-            else if (propertySettable) addItemToList(item); // match properties with $settable flag set 
-        }
-      }
-    }
-    
-    var addNodeToList = function (item) {
-
-      // config.addToLog("debug","addNodeToList : "+config.$settable+" : "+item.$settable+" : "+item.name);
-      node = device[item.value];
-      if (node!==undefined) {
-        if (node.nodeId && node.nodeId.substr(0,1)=='$') node.itemList.forEach(addExtensionPropertyToList)
-        else node.itemList.forEach(addPropertyToList);
-      }
-    }
-
-    var addStateToList = function (device) {
-    var item = {};
-    const homieDef = {
-      "$state":{"icon":"fa fa-bolt","type":"enum","unit":"","required":true,"default":"lost","format":
-        {
-          "init":"fa fa-cog fa-spin",
-          "ready":"fa fa-spinner fa-spin",
-          "disconnected":"fa fa-times",
-          "sleeping":"fa fa-moon-o",
-          "lost":"fa fa-question-circle",
-          "alert":"fa fa-exclamation-triangle"
-        }
-      },
-      "$homie":{"icon":"fa fa-tag","type":"string","unit":"","required":true,"default":"n/a","format":""},
-      "$extensions":{"icon":"fa fa-tags","type":"string","unit":"","required":false,"default":"n/a","format":""},
-      "$type":{"icon":"fa fa-cogs","type":"string","unit":"","required":true,"default":"n/a","format":""},
-      "$implementation":{"icon":"fa fa-code","type":"string","unit":"","required":false,"default":"n/a","format":""},
-      "$localip":{"icon":"fa fa-address-card-o","type":"string","unit":"","required":true,"default":"n/a","format":""},
-      "$mac":{"icon":"fa fa-barcode","type":"string","unit":"","required":true,"default":"n/a","format":""},
-      "$fw":{
-        "name":{"icon":"fa fa-file-code-o","type":"string","unit":"","required":true,"default":"n/a","format":""},
-        "version":{"icon":"fa fa-code-fork","type":"string","unit":"","required":true,"default":"n/a","format":""},
-        "*":{"icon":"fa fa-label","type":"string","unit":"","required":false,"default":"","format":""} 
-      },
-      "$stats": {
-        "interval":{"icon":"fa fa-undo","type":"integer","unit":"sec","required":true,"default":0,"format":""},
-        "uptime":{"icon":"fa fa-clock-o","type":"integer","unit":"sec","required":true,"default":0,"format":""},
-        "signal":{"icon":"fa fa-wifi","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
-        "cputemp":{"icon":"fa fa-thermometer-half","type":"float","unit":"°C","required":false,"default":0,"format":""},
-        "cpuload":{"icon":"fa fa-microchip","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
-        "battery":{"icon":"fa fa-battery-half","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
-        "freeheap":{"icon":"fa fa-braille","type":"integer","unit":"bytes","required":false,"default":0,"format":""},
-        "supply":{"icon":"fa fa-plug","type":"float","unit":"V","required":false,"default":0,"format":""},
-      }
-    };
-    item.class= 'palette-header';
-    item.label= device.$name + " [" + device.$state + "]";
-    item.icon= homieDef.$state.format[device.$state];
-    item.children=[];
-    // console.log("statsList",device)
-    for (var element in device) {
-      if (homieDef.hasOwnProperty(element)) {
-        if (homieDef[element] && homieDef[element].hasOwnProperty("icon")) {
-          item.children.push({"label": element +" = "+ (device[element] || "n/a")+" "+homieDef[element].unit, "icon": homieDef[element].icon});
-        } else {
-          if (typeof device[element] === "object") {
-            for (var subElement in device[element]) {
-              // console.log(element,subElement,device[element][subElement]);
-              if (homieDef[element][subElement] && homieDef[element][subElement].hasOwnProperty("icon")) {
-                item.children.push({"label": subElement +" = "+ (device[element][subElement].value || "n/a")+" "+homieDef[element][subElement].unit, "icon": homieDef[element][subElement].icon});
-              } else {
-                // RED.log.error("[homie stats list] child "+subElement+" not defined");
-              }
+    var addDefTree = function (def,extension,tree,path) {
+      Object.keys(def).forEach(extensionDef => {
+        if (extension.hasOwnProperty(extensionDef)) {
+          if (def[extensionDef].hasOwnProperty('$datatype')) {
+            if (!extensionDef.startsWith('_')) {
+              tree.push({
+                label: `${extensionDef}=${(extension[extensionDef]) ? extension[extensionDef] + ((def[extensionDef].$unit) ? ' '+def[extensionDef].$unit : '') : 'N/A'} ${(def[extensionDef].name) ? '('+def[extensionDef].name+')':''}`,
+                info: `${(def[extensionDef].description) ? def[extensionDef].description : 'no description available'}<br>$datatype: <b>${def[extensionDef].$datatype}</b> $format: <b>${def[extensionDef].$format}</b> $unit: <b>${def[extensionDef].$unit}`,
+                id: path + '/' + extensionDef,
+                icon: (def[extensionDef].icon) ? def[extensionDef].icon : broker.icons.$datatype.values[extension[extensionDef].$datatype],
+                selected: false,
+                checkbox: true
+              })
             }
           } else {
-            RED.log.error("[homie stats list] "+element+" not defined");
+            path += '/'+extensionDef
+            let treeChildren=tree[tree.push({ 
+              label: `${extensionDef}`,
+              info: `${(def[extensionDef].description) ? def[extensionDef].description : 'no description available'}`,
+              id: path,
+              icon: "fa fa-plug",
+              selected: false,
+              checkbox: true,
+              children: []
+            })-1].children;
+            addDefTree(def[extensionDef],extension[extensionDef],treeChildren,path);
+          }
+        } else if (extensionDef==='*') {
+          Object.keys(extension).forEach(extraParameter => {
+            if (!def.hasOwnProperty(extraParameter)) {
+              if (!extraParameter.startsWith('_')) {
+                tree.push({
+                  label: `${extraParameter}=${extension[extraParameter]}`,
+                  info: `${(def['*'].description) ? def['*'].description : 'no description available'}`,
+                  id: path + '/' + extraParameter,
+                  icon: (def['*'].icon) ? def['*'].icon : 'fa fa-plug',
+                  selected: false,
+                  checkbox: true
+                })
+              }
+            }
+          });
+        }
+      })
+    }
+
+    Object.keys(broker.homieData).forEach(baseId => {
+      if (config.filterTree && (config.baseId!=='[any]' && baseId !== config.baseId)) return;
+      path = baseId;
+      let devices = broker.homieData[baseId];
+      let treeDevices=treeList[treeList.push({
+        label: baseId,
+        sublabel: 'base',
+        class: 'homie-base',
+        info: `Homie base containing devices<br><a href="https://homieiot.github.io/specification/#base-topic" target="_blank">detailed info on github</a>`,
+        id: path,
+        icon: "",
+        selected: (config.filterTree) ? undefined : false,
+        deferBuild: true,
+        checkbox: (config.filterTree) ? false : true,
+        expanded: (config.filterTree) ? true : undefined,
+        children: []
+      })-1].children;
+      Object.keys(devices).forEach(deviceId => {
+        if (config.filterTree && (config.deviceId!=='[any]' && deviceId !== config.deviceId)) return;
+        let devicePath = path + '/'+deviceId;
+        let device = devices[deviceId];
+        let def = broker.getHomieConvention(device)._nodes._properties;
+        let treeNodes=treeDevices[treeDevices.push({
+          label: `${device.$name} (id: ${deviceId} homie ${device.$homie}) [${device.$state}]`,
+          sublabel: 'device',
+          class: `homie-${device.$state}`,
+          info: `Homie device containing nodes and additional device data including extensions if available<br>Implementation: <b>${device.$implementation}</b><br><a href="https://homieiot.github.io/specification/#devices" target="_blank">detailed info https://homieiot.github.io/</a>`,
+          id: devicePath,
+          icon: (device._validated) ? "fa fa-cogs" : "fa fa-exclamation-triangle",
+          selected: (config.filterTree) ? undefined : false,
+          checkbox: (config.filterTree) ? false : true,
+          expanded: (config.filterTree) ? true : undefined,
+          deferBuild: true,
+          children: []
+        })-1].children;
+        if (device.$extensions) {
+          let extensionsArray = device.$extensions.split(',');
+          extensionsArray.forEach(extensionId => {
+            if (config.filterTree && (config.extensionId==='[none]' || (config.extensionId!=='[any]' && extensionId !== config.extensionId))) return;
+            let extensionName = extensionId.split(':').shift();
+            let extensionPath = devicePath; //  + '/' + extensionName;
+            let treeParameters=treeNodes[treeNodes.push({
+              label: extensionId,
+              sublabel: 'extension',
+              class: 'homie-extension',
+              info: `${broker.homieExtensions[extensionName].description}<br>Version: <b>${broker.homieExtensions[extensionName].version}</b> Suitable for Homie <b>${broker.homieExtensions[extensionName].homie}</b><br><a href="${broker.homieExtensions[extensionName].url}" target="_blank">detailed info on github</a>`,
+              id: extensionPath,
+              icon: "fa fa-plug",
+              selected: (config.filterTree) ? undefined : false,
+              checkbox: (config.filterTree) ? false : true,
+              expanded: (config.filterTree) ? true : undefined,
+              deferBuild: true,
+              children: []
+            })-1].children;
+            addDefTree(broker.homieExtensions[extensionName]._definition,device,treeParameters,extensionPath);
+          });
+        }
+        if (device.$nodes) {
+          let nodesArray = device.$nodes.split(',');
+          nodesArray.forEach(nodeId => {
+            if (config.filterTree && (config.nodeId!=='[any]' && nodeId !== config.nodeId)) return;
+            let nodePath = devicePath + '/' + nodeId;
+            let node = device[nodeId]
+            if (node) {
+              let treeParameters=treeNodes[treeNodes.push({
+                label: `${node.$name} (id: ${nodeId}${(node.$type)? ' '+node.$type : ''})`,
+                sublabel: 'node',
+                class: 'homie-node',
+                info: `Homie node containing properties<br>Type: <b>${node.$type}</b> Id: <b>${nodeId}</b><br><a href="https://homieiot.github.io/specification/#nodes" target="_blank">detailed info on github</a>`,
+                id: nodePath,
+                icon: (node._validated) ? "fa fa-cog" : "fa fa-exclamation-triangle",
+                selected: (config.filterTree) ? undefined : false,
+                checkbox: (config.filterTree) ? false : true,
+                expanded: (config.filterTree) ? true : undefined,
+                deferBuild: true,
+                children: []
+              })-1].children;
+              if (node.$properties) {
+                let propertyArray = node.$properties.split(',');
+                propertyArray.forEach(propertyId => {
+                  if (config.filterTree && (config.propertyId==='[none]' || (config.propertyId!=='[any]' && propertyId !== config.propertyId))) return;
+                  let propertyPath = nodePath+'/'+propertyId;
+                  let property = node[propertyId]
+                  if (property) {
+                    let treeParameter = treeParameters[treeParameters.push({
+                      label: (property.$name || `id: ${propertyId}`) + ((property.hasOwnProperty('_property')) ? `=${property._property.payload} (${property._property.value}${property.$unit})` : ''),
+                      sublabel: 'property',
+                      class: 'homie-property',
+                      info: `$datatype: <b>${property.$datatype}</b> $format:${property.$format}<br><a href="https://homieiot.github.io/specification/#nodes" target="_blank">detailed info on github</a>`,
+                      id: propertyPath,
+                      icon: (property._validated) ? broker.icons.$datatype.values[property.$datatype] : "fa fa-exclamation-triangle",
+                      selected: (config.filterTree) ? undefined : false,
+                      checkbox: (config.filterTree) ? false : true,
+                      expanded: (config.filterTree) ? false : undefined,
+                      deferBuild: true,
+                      children: []
+                    })-1].children;
+                    Object.keys(property).forEach(propertyKey => {
+                      let keyPath = propertyPath+'/'+propertyKey;
+                      if (def.hasOwnProperty(propertyKey)) {
+                        let faIcon = "";
+                        if (broker.icons.hasOwnProperty(propertyKey)) {
+                          faIcon=broker.icons[propertyKey].icon;
+                          if (broker.icons[propertyKey].hasOwnProperty('values')) {
+                            faIcon=broker.icons[propertyKey].values[property[propertyKey].toString()];
+                          }
+                        }
+                        treeParameter.push({
+                          label: `${propertyKey}=${property[propertyKey]}`,
+                          sublabel: 'attribute',
+                          class: 'homie-parameter',
+                          id: keyPath,
+                          icon: faIcon
+                        })
+                      }
+                    });
+                  }
+                });
+              }
+              if (treeParameters.length===0) { // no  matches further down the path, so delete this entity again.
+                treeNodes.pop();
+              }
+            }
+          });
+        }
+        if (treeNodes.length===0) { // no  matches further down the path, so delete this entity again.
+          treeDevices.pop();
+        }
+      });
+      if (treeDevices.length===0) { // no  matches further down the path, so delete this entity again.
+        treeList.pop();
+      }
+    });
+
+    res.json(treeList);
+  });
+
+  RED.httpAdmin.get("/homieConvention/deviceList", RED.auth.needsPermission('homie-convention-device.read'), function(req,res) {
+    var returnItems = []; // list of Items to send back to the frontend
+    var config = req.query;
+    if (typeof config.settable=="string") config.settable=(config.settable==="true"); // sometimes config.settable comes as a string
+    var broker = RED.nodes.getNode(config.broker);
+
+    var addStateToList = function (device) {
+      const homieDef = {
+        "$state":{"icon":"fa fa-bolt","type":"enum","unit":"","required":true,"default":"lost","format":
+        {
+            "init":"fa fa-cog fa-spin",
+            "ready":"fa fa-spinner fa-spin",
+            "disconnected":"fa fa-times",
+            "sleeping":"fa fa-moon-o",
+            "lost":"fa fa-question-circle",
+            "alert":"fa fa-exclamation-triangle"
+          }
+        },
+        "$homie":{"icon":"fa fa-tag","type":"string","unit":"","required":true,"default":"n/a","format":""},
+        "$extensions":{"icon":"fa fa-tags","type":"string","unit":"","required":false,"default":"n/a","format":""},
+        "$type":{"icon":"fa fa-cogs","type":"string","unit":"","required":true,"default":"n/a","format":""},
+        "$implementation":{"icon":"fa fa-code","type":"string","unit":"","required":false,"default":"n/a","format":""},
+        "$localip":{"icon":"fa fa-address-card-o","type":"string","unit":"","required":true,"default":"n/a","format":""},
+        "$mac":{"icon":"fa fa-barcode","type":"string","unit":"","required":true,"default":"n/a","format":""},
+        "$fw":{
+          "name":{"icon":"fa fa-file-code-o","type":"string","unit":"","required":true,"default":"n/a","format":""},
+          "version":{"icon":"fa fa-code-fork","type":"string","unit":"","required":true,"default":"n/a","format":""},
+          "*":{"icon":"fa fa-label","type":"string","unit":"","required":false,"default":"","format":""} 
+        },
+        "$stats": {
+          "interval":{"icon":"fa fa-undo","type":"integer","unit":"sec","required":true,"default":0,"format":""},
+          "uptime":{"icon":"fa fa-clock-o","type":"integer","unit":"sec","required":true,"default":0,"format":""},
+          "signal":{"icon":"fa fa-wifi","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
+          "cputemp":{"icon":"fa fa-thermometer-half","type":"float","unit":"°C","required":false,"default":0,"format":""},
+          "cpuload":{"icon":"fa fa-microchip","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
+          "battery":{"icon":"fa fa-battery-half","type":"integer","unit":"%","required":false,"default":0,"format":"0:100"},
+          "freeheap":{"icon":"fa fa-braille","type":"integer","unit":"bytes","required":false,"default":0,"format":""},
+          "supply":{"icon":"fa fa-plug","type":"float","unit":"V","required":false,"default":0,"format":""},
+        }
+      };
+      var item = {
+        class : 'palette-header',
+        label : device.$name + " [" + device.$state + "]",
+        icon :  homieDef.$state.format[device.$state],
+        children : []
+      }
+      for (var element in device) {
+        if (homieDef.hasOwnProperty(element)) {
+          if (homieDef[element] && homieDef[element].hasOwnProperty("icon")) {
+            item.children.push({"label": element +" = "+ (device[element] || "n/a")+" "+homieDef[element].unit, "icon": homieDef[element].icon});
+          } else {
+            if (typeof device[element] === "object") {
+              for (var subElement in device[element]) {
+                if (homieDef[element][subElement] && homieDef[element][subElement].hasOwnProperty("icon")) {
+                  item.children.push({"label": subElement +" = "+ (device[element][subElement].value || "n/a")+" "+homieDef[element][subElement].unit, "icon": homieDef[element][subElement].icon});
+                } else {
+                  // RED.log.error("[homie stats list] child "+subElement+" not defined");
+                }
+              }
+            } else {
+              RED.log.error("[homie stats list] "+element+" not defined");
+            }
           }
         }
       }
-    }
-    devices.push(item);
+      returnItems.push(item);
     }
 
-    // config.addToLog("debug","/homieConvention/deviceList called for broker " + config.name + " query: "+ config.itemID+" Filter D:"+config.deviceID+" N:"+config.nodeID+" P:"+config.propertyID+" S:"+config.settable);
-    var errorStr = "";
+    // just to support legacy
+    if (config.baseID===undefined || (!broker.homieData.hasOwnProperty(config.baseID) && config.baseID!=='[any]')) {
+      config.baseID='[any]';
+    }
+    
+    var bases = [];
+    var devices = [];
+    var nodes = [];
+
     switch (config.itemID) {
-      case 'stateDeviceID':
-      case 'deviceID':    devices = broker.homieDevices;
-                          break;
-      case 'nodeID':      if (config.deviceID!="[any]") { // nodes from a specific device
-                            if (broker.homieData[config.deviceID] && broker.homieData[config.deviceID].itemList) {
-                              devices=broker.homieData[config.deviceID].itemList
-                            } else {
-                              devices=[{"name":"NO Devices found!","value":"NO Devices found"}];
-                            }
-                          } else { // nodes from [any] Device
-                              for (var deviceName in broker.homieData) {
-                                device=broker.homieData[deviceName];
-                                if (device.itemList) {
-                                  device.itemList.forEach(addItemToList);
-                                } 
-                              }
-                            }
-                          break;
+      case 'baseID':
+        returnItems = Object.keys(broker.homieData);
+        break;
+      case 'deviceID':
+        bases = (config.baseID==="[any]") ? Object.keys(broker.homieData) : [config.baseID];
+        bases.forEach(base => {
+          returnItems = returnItems.concat(Object.keys(broker.homieData[base]))
+        });
+        break;
+      case 'nodeID':
+        bases = (config.baseID==="[any]") ? Object.keys(broker.homieData) : [config.baseID];
+        bases.forEach(base => {
+          devices = (config.deviceID==="[any]") ? Object.keys((broker.homieData[base]) ? broker.homieData[base] : {}) : [config.deviceID];
+          devices.forEach(device => {
+            if (broker.homieData[base].hasOwnProperty(device)) {
+              returnItems= returnItems.concat((broker.homieData[base][device].$nodes) ? broker.homieData[base][device].$nodes.split(',') : []);
+            }
+          });
+        });
+        break;
       case 'propertyID':
-      case 'treeList': 
-        // node.addToLog("debug","deviceList : "+config.deviceID+"/"+config.nodeID+"/"+config.propertyID+" Settable:"+config.settable);
-
-        if (config.deviceID!=="[any]" && config.nodeID!=="[any]") { // property from a specific device and node
-          device = broker.homieData[config.deviceID];
-          node = broker.homieData[config.deviceID][config.nodeID];
-          if (device!==undefined && node!==undefined) {
-            if (config.nodeID.substr(0,1)=='$') node.itemList.forEach(addExtensionPropertyToList)
-            else node.itemList.forEach(addPropertyToList);
-          }
-        } else {
-          if (config.deviceID==="[any]") { // Include [any] device. loop through devices
-            for (var deviceName in broker.homieData) {
-              device=broker.homieData[deviceName];
-              if (device.itemList!==undefined) {
-                if (config.nodeID=="[any]") { // loop through nodes
-                  device.itemList.forEach(addNodeToList);
-                } else { // specific node defined
-                  node = device[config.nodeID];
-                  if (node!==undefined) {
-                  if (node.itemList!==undefined) node.itemList.forEach(addPropertyToList);
-                  }
-                }
+        bases = (config.baseID==="[any]") ? Object.keys(broker.homieData) : [config.baseID];
+        bases.forEach(base => {
+          devices = (config.deviceID==="[any]") ? Object.keys((broker.homieData[base]) ? broker.homieData[base] : {}) : [config.deviceID];
+          devices.forEach(device => {
+            nodes = (config.nodeID==="[any]") ? Object.keys((broker.homieData[base][device]) ? broker.homieData[base][device] : {}) : [config.nodeID];
+            nodes.forEach(node => {
+              if (broker.homieData[base].hasOwnProperty(device) && broker.homieData[base][device].hasOwnProperty(node)) {
+                returnItems= returnItems.concat((broker.homieData[base][device][node].$properties) ? broker.homieData[base][device][node].$properties.split(',') : []);
               }
+            });
+          });
+        });
+        break;
+      case 'extensionID':
+        bases = (config.baseID==="[any]") ? Object.keys(broker.homieData) : [config.baseID];
+        bases.forEach(base => {
+          devices = (config.deviceID==="[any]") ? Object.keys((broker.homieData[base]) ? broker.homieData[base] : {}) : [config.deviceID];
+          devices.forEach(device => {
+            if (broker.homieData[base][device]) {
+              returnItems= returnItems.concat((broker.homieData[base][device].$extensions) ? broker.homieData[base][device].$extensions.split(',') : []);
             }
-          } else { // specific device defined
-            if (broker && broker.homieData && broker.homieData.hasOwnProperty(config.deviceID)) {
-              device = broker.homieData[config.deviceID];
-              if (device.itemList!==undefined) {
-                if (config.nodeID=="[any]") { // loop through nodes
-                  device.itemList.forEach(addNodeToList);
-                } else { // specific node defined
-                  if (device[config.nodeID]!==undefined) {
-                    node = device[config.nodeID];
-                    node.itemList.forEach(addPropertyToList);
-                  } 
-                }
-              }
-            }
-          }
-        }
+          });
+        });
         break;
       case 'stateList':
-        for (var deviceName in broker.homieData) {
-          device=broker.homieData[deviceName];
-          addStateToList(device);
-        }
-        break;
+        if (config.deviceID==='') config.deviceID='[any]';
+        bases = (config.baseID==="[any]") ? Object.keys(broker.homieData) : [config.baseID];
+        bases.forEach(base => {
+          devices = (config.deviceID==="[any]") ? Object.keys((broker.homieData[base]) ? broker.homieData[base] : {}) : [config.deviceID];
+          devices.forEach(device => {
+            if (broker.homieData[base][device]) {
+              addStateToList(broker.homieData[base][device]);
+            }
+          });
+        });
+        res.json([...new Set(returnItems)]);
+        return;
     }
-
-    res.json(devices);
+    // filter out duplicate names & sort
+    // returnItems.filter((item, index) => returnItems.indexOf(item) === index);
+    res.json([...new Set(returnItems)].sort((a,b) => {
+      if ( a.toLowerCase() < b.toLowerCase() )
+        return -1;
+      else if ( a.toLowerCase() > b.toLowerCase() )
+        return 1;
+      else
+        return 0;
+    }));
   });
 
   // callback function to deliver configuration information about devices / nodes or properties
@@ -1019,16 +1002,19 @@ module.exports = function (RED) {
     var config = req.query;
     // node.addToLog("debug","/homieConvention/propertyInfo called for broker " + config.name + " query: "+ config.itemID+" Filter D:"+config.deviceID+" N:"+config.nodeID+" P:"+config.propertyID);
     var broker = RED.nodes.getNode(config.broker);
-    var devices = {queryVaueID: config.queryValueID};
+    var devices = {queryValueID: config.queryValueID};
     switch (config.queryValueID) {
+      case 'baseID':
+          devices.info = broker.broker.homieData[config.baseID] || {};
+          break;
       case 'deviceID':
-          devices.info = broker.broker.homieData[config.deviceID] || {};
+          devices.info = broker.broker.homieData[config.baseID][config.deviceID] || {};
           break;
       case 'nodeID':
-          devices.info = broker.broker.homieData[config.deviceID][config.nodeID] || {};
+          devices.info = broker.broker.homieData[config.baseID][config.deviceID][config.nodeID] || {};
           break;
       case 'propertyID':
-          devices.info = broker.broker.homieData[config.deviceID][config.nodeID][config.propertyID] || {};
+          devices.info = broker.broker.homieData[config.baseID][config.deviceID][config.nodeID][config.propertyID] || {};
           break;
     }
 

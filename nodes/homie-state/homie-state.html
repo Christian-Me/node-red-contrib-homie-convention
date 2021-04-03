@@ -1,41 +1,5 @@
 <script type="text/html text/x-red" data-template-name="homie-convention-state">
-<!--
 
-  <style type="text/css">
-    .btn-group {
-      width: 70%;
-    }
-    .multiselect {
-      width: 100%;
-    }
-    .form-row input.multiselect-search {
-      width: 100%;
-    }
-    .multiselect-clear-filter {
-        display: none;
-    }
-    .dropdown-menu {
-        width: 100% !important;
-      }
-      .multiselect-container input[type="checkbox"] {
-        display: none;
-    }
-    .multiselect-container > li > a > label.radio {
-      margin: 5px;
-      width: 90%;
-      height: 100%;
-      cursor: pointer;
-        font-weight: 400;
-        padding: 3px 20px 3px 20px;
-      }
-      .multiselect-container label.radio input[type="radio"] {
-        display: none;
-    }
-  </style>
-  
-  <link rel="stylesheet" href="static/css/bootstrap-multiselect.css" type="text/css" />
-    
-  -->
     <div class="form-row">
       <label for="node-input-name"><i class="icon-tag"></i> Name</label>
       <input type="text" id="node-input-name" placeholder="Name">
@@ -46,8 +10,12 @@
     </div>
 
     <div class="form-row">
-      <label for="node-input-stateDeviceID"><i class="fa fa-crosshairs"></i> Device</label>
-      <select id="node-input-stateDeviceID"></select>
+      <label for="node-input-baseID"><i class="fa fa-crosshairs"></i> Base</label>
+      <select id="node-input-baseID"></select>
+    </div>
+    <div class="form-row">
+      <label for="node-input-deviceID"><i class="fa fa-crosshairs"></i> Device</label>
+      <select id="node-input-deviceID"></select>
     </div>
         
     <div class="form-row">
@@ -79,8 +47,9 @@
   var treeList;
 
   // remember last selection to prevent unnecessary Updates
+  var lastBaseID = '';
   var lastDeviceID = '';
-
+  
 	function stateConfigEditPrepare(node, allowEmpty) {
 
     function updateProperty(cntrlConfig, valueID, itemName) {
@@ -88,10 +57,12 @@
         var config = {
           name: cntrlConfig.name,
           broker: cntrlConfig.id,
-          // field name to query
+          baseID: $('#node-input-baseID').val(),
+          deviceID: $('#node-input-deviceID').val(), 
+         // field name to query
           itemID: valueID,
           // filters to query
-          stateDeviceID: $('#node-input-stateDeviceID').val(),
+          // stateDeviceID: $('#node-input-stateDeviceID').val(),
         }
         console.log("updateProperty ("+itemName+") = ",cntrlConfig,config);
         $.getJSON("homieConvention/propertyInfo", config)
@@ -114,28 +85,20 @@
 
         var itemSelectionEl = $('#node-input-'+ valueID);
         var treeData = [];
-/*
-        itemSelectionEl.multiselect({
-            enableFiltering: true,
-            enableCaseInsensitiveFiltering: true,
-            maxHeight: 300,
-            disableIfEmpty: true,
-            nonSelectedText: 'Select device...',
-            disabledText: 'No items found...'
-        });
-*/        
+    
         if ( cntrlConfig ) {
           var config = {
             name: cntrlConfig.name,
             broker: cntrlConfig.id,
-            // field name to query
+            baseID: $('#node-input-baseID').val() || node.baseID,
+            deviceID: $('#node-input-deviceID').val() || node.deviceID, 
             itemID: valueID,
-            // filters to query
-            stateDeviceID: $('#node-input-stateDeviceID').val() || node.stateDeviceID,
             nodeID: "$state",
             propertyID: "[any]",
             settable: false
           }
+          lastBaseID=config.baseID;
+          lastDeviceID=config.deviceID;
           
           console.log("[state] updateItemSelection ("+itemName+") = ",config);
           $.getJSON("homieConvention/deviceList", config)
@@ -144,21 +107,12 @@
               var items = data;
               if (config.itemID!=="stateList" ) { // fill dropdown list except for treeView updates
                 itemSelectionEl.children().remove();
-
-                items.sort(function(a,b) {
-                  if ( a.name.toLowerCase() < b.name.toLowerCase() )
-                    return -1;
-                  else if ( a.name.toLowerCase() > b.name.toLowerCase() )
-                    return 1;
-                  else
-                    return 0;
-                });
-
                 itemSelectionEl.append('<option value="[any]">[any]</option>');
                 items.forEach(function (item) {
-                  itemSelectionEl.append('<option value="'+item.value+'">' + item.name + '</option>');
+                  itemSelectionEl.append('<option value="'+item+'">' + item + '</option>');
                 });
                 itemSelectionEl.val(itemName);
+                $('#node-input-'+valueID).change();
               } else { // fill treeList with selected properties
                 treeList.treeList('data',items);
               }
@@ -170,17 +124,22 @@
     }
     
     console.log("configEditPrepare",node);
-    console.log(" deviceID  : ",$('#node-input-stateDeviceID').val());
+    console.log(" deviceID  : ",$('#node-input-deviceID').val());
     
 		$('#node-input-broker').change(function(ev) { // update device list if broker is changed
-	        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'stateDeviceID', $('#node-input-stateDeviceID').val() || node.stateDeviceID);
+      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'baseID', $('#node-input-baseID').val() || node.baseID);
+      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'stateList', $('#node-input-deviceID').val() || node.deviceID);
 		});
-		$('#node-input-stateDeviceID').change(function(ev) {
-      console.log("[state] update state list?",lastDeviceID,"",$('#node-input-stateDeviceID').val());
-      if (!lastDeviceID || lastDeviceID!=$('#node-input-stateDeviceID').val()) { // update tree List if Device ID differs.  || $('#node-input-stateDeviceID').val() === '[any]'
-        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'stateList', $('#node-input-stateDeviceID').val() || node.stateDeviceID);
-      }  else console.log("[state] update state list skipped")
-      lastDeviceID=$('#node-input-stateDeviceID').val();
+		$('#node-input-baseID').change(function(ev) { // update device list if baseID is changed
+      if (lastBaseID!==$('#node-input-baseID').val()) {
+        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'stateList', $('#node-input-deviceID').val() || node.deviceID);
+      }
+      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'deviceID', $('#node-input-deviceID').val() || node.deviceID);
+		});
+		$('#node-input-deviceID').change(function(ev) {
+      if (lastDeviceID!==$('#node-input-deviceID').val()) {
+        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'stateList', $('#node-input-deviceID').val() || node.deviceID);
+      }
 		});
 	}
 
@@ -194,7 +153,8 @@
     defaults: {
       broker: {value: '', type: 'homie-convention-broker-config', required: true},
       name: {value: ''},
-      stateDeviceID: {value: '[any]', required: true},
+      baseID: {value: '[any]', required: true},
+      deviceID: {value: '[any]', required: true},
       infoFw: {value: true},
       infoStats: {value: true},
       infoTiming: {value: false},
@@ -204,7 +164,7 @@
     outputs: 1,
     icon: "Homie-state-logo.svg",
     label: function() {
-      this.topic= this.stateDeviceID;
+      this.topic= this.baseID+'/'+this.deviceID;
       return this.name||this.topic||"homie state";
     },
     oneditprepare: function() {	
@@ -256,7 +216,7 @@
   <p> <img src="https://homieiot.github.io/img/mqtt_homie.jpg"></img>
   </p>
   <p>
-    A message is emitted when the <b>$state</b> topic (or any other status information) of any or a specific device changes. Detailed information you find at <a href="https://homieiot.github.io/specification/#device-lifecycle"> 
+    A message is emitted when the <b>$state</b> topic (or any other status information) of any or a specific base/device changes. Detailed information you find at <a href="https://homieiot.github.io/specification/#device-lifecycle"> 
   </p>
   <p></p>
 	<b>Configuration</b>
@@ -267,6 +227,7 @@
 
   <h3>basic configuration</h3>
     <ul>
+      <li><b>Base :</b> Optionally select the baseId to address. If specified, it filters messages messages from a specific baseId.</li>
       <li><b>Device :</b> Optionally select the device to address. If specified, it filters messages messages from a specific device.</li>
     </ul>
 
@@ -283,39 +244,48 @@
   <p></p>
   
   <h3>Inputs</h3>
-    <dl class="message-properties">
-        <dt>payload
-            <span class="property-type">string</span>
-        </dt>
-        <dd> device name or <b>[any]</b></br>the node only emits a state messages when it receives an update via mqtt. Send the device name to receive the last know FULL state of the device</dd>
-    </dl>
-    <dl class="message-properties">
-      <dt>broker
+
+  <dl class="message-properties">
+      <dt>payload
           <span class="property-type">string</span>
       </dt>
-      <dd> <i>optional</i> full broker url in case of a multi broker environment</dd>
-    </dl>
+      <dd> baseId/deviceId or <b>[any]</b></br>the node only emits a state messages when it receives an update via mqtt. Send baseId/deviceId to receive the last know FULL state of the device</dd>
+  </dl>
+  <dl class="message-properties">
+    <dt>baseId
+        <span class="property-type">string</span>
+    </dt>
+    <dd> baseId or <b>[any]</b></br>the baseId can be specified individually.</dd>      
+  </dl>
+  <dl class="message-properties">
+    <dt>deviceId
+        <span class="property-type">string</span>
+    </dt>
+    <dd> deviceId or <b>[any]</b></br>the deviceId can be specified individually.</dd>      
+  </dl>
 
- <h3>Outputs</h3>
-     <ol class="node-ports">
-         <li>Standard output
-             <dl class="message-properties">
-                 <dt>msg.payload <span class="property-type">string/span></dt>
-                 <dd>payload of the $stats topic</dd>
+  <h3>Outputs</h3>
+  <ol class="node-ports">
+    <li>Standard output
+      <dl class="message-properties">
+        <dt>msg.payload <span class="property-type">string/span></dt>
+        <dd>payload of the $stats topic</dd>
 
-                 <dt>msg.topic <span class="property-type">string</span></dt>
-                 <dd>uique deviceID of the emitting device (broker URL + device name)</dd>
+        <dt>msg.topic <span class="property-type">string</span></dt>
+        <dd>unique deviceID of the emitting device (broker URL + device name)</dd>
 
-                 <dt>msg.deviceId <span class="property-type">string</span></dt>
-                 <dd>Name of the device the message came from</dd>
+        <dt>msg.baseId <span class="property-type">string</span></dt>
+        <dd>baseId the message came from</dd>
+        <dt>msg.deviceId <span class="property-type">string</span></dt>
+        <dd>deviceId the message came from</dd>
 
-                 <dt>msg.stats <span class="property-type">object</span></dt>
-                 <dd>containing basic device information</dd>
-                 <dd>containing stats ($stats) information</dd>
-                 <dd>containing firmware ($fw) information</dd>
-             </dl>
-         </li>
-     </ol>
+        <dt>msg.stats <span class="property-type">object</span></dt>
+        <dd>containing basic device information</dd>
+        <dd>containing stats ($stats) information</dd>
+        <dd>containing firmware ($fw) information</dd>
+      </dl>
+    </li>
+  </ol>
 
   <h3>Details</h3>
     <p>

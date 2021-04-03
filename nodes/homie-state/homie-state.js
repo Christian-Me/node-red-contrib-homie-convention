@@ -38,7 +38,13 @@ module.exports = function (RED) {
           break;
         default:
           status.text = 'MQTT: '+state;
-          msgOut.state.$state="alert"
+          if (state.startsWith('connected')) {
+            msgOut.state.$state="ready";
+            status.shape = 'dot';
+            status.fill = 'green';
+          } else {
+            msgOut.state.$state="alert"
+          }
       }
       if (msgOut.$state!==node.lastBrokerState) {
         node.send([msgOut]);
@@ -50,7 +56,8 @@ module.exports = function (RED) {
 
     this.log = {};
     this.broker = RED.nodes.getNode(config.broker);
-    this.stateDeviceID = config.stateDeviceID;
+    this.baseID = config.baseID;
+    this.deviceID = config.deviceID;
     this.infoError=config.infoError; // include Error messages
     this.infoStats=config.infoStats; // include Statistics information
     this.infoFw=config.infoFw; // include Firmware information
@@ -97,31 +104,60 @@ module.exports = function (RED) {
       }
     }
 
-    this.on('input', function(msg) {
-      if (msg.hasOwnProperty('broker') && msg.broker!==node.broker.brokerurl) return; // to be multi broker safe.
+    this.on('input', function(msg, send, done) {
+      send = send || function() { node.send.apply(node,arguments) }
+      if (msg.hasOwnProperty('broker') && msg.broker!==node.broker.brokerurl) {
+        if (done) done();
+        return; // to be multi broker safe.
+      };
+
       var result = false;
-      var deviceList=[];
-      if (!msg.payload || msg.payload==="") msg.payload=node.stateDeviceID;
-      var stateMsg = {"topic": node.broker.brokerurl+'/'+node.broker.homieRoot+'/'+msg.payload};
-      if (msg.payload!=='[any]') {
-        deviceList.push({"name":msg.payload});
+      var baseList=[];
+      if (!msg.hasOwnProperty('baseId')) msg.baseId='[any]';
+      if (!msg.hasOwnProperty('deviceId')) msg.deviceId='[any]';
+
+      if (msg.hasOwnProperty('payload')) {
+        let topicSplitted = msg.payload.split('/');
+        msg.baseId = topicSplitted.shift();
+        if (topicSplitted.length>0) {
+          msg.deviceId = topicSplitted.shift();
+        } else {
+          msg.deviceId = '[any]';
+        }
+      }
+      var stateMsg = {"topic": node.broker.brokerurl+'/'+msg.baseId+'/'+msg.deviceId};
+      if (msg.baseId==='[any]') {
+        baseList=Object.keys(node.broker.homieData)
       } else {
-        deviceList=node.broker.homieDevices;
+        if (node.broker.homieData.hasOwnProperty(msg.baseId)) {
+          baseList=[msg.baseId];
+        } else {
+          addToLog('error',`Unknown baseId: ${msg.baseId}`);
+          if (done) done();
+          return;
+        }
       }
 
-      deviceList.forEach((device,index) => {
-        stateMsg = {
-          "topic": node.broker.brokerurl+'/'+node.broker.homieRoot+'/'+device.name,
-          "deviceId":device.name,
-          "state":{"$name":device.name}
-        };
-        result = node.buildStateObject(node.broker.homieData[stateMsg.deviceId],stateMsg.state);
-        if (!result) {
-          delete stateMsg.state;
-          stateMsg.error={status: "error", error: device.name+" not found"}
-        }
-        node.send([stateMsg]);
+      baseList.forEach(base => {
+        Object.keys(node.broker.homieData[base]).forEach(device => {
+          if (msg.deviceId==='[any]' || device === msg.deviceId) {
+            stateMsg = {
+              "topic": node.broker.brokerurl+'/'+base+'/'+device,
+              "baseId":base,
+              "deviceId":device,
+              "typeId":'stateRequest',
+              "state":{"$name":base+'/'+device}
+            };
+            result = node.buildStateObject(node.broker.homieData[base][device],stateMsg.state);
+            if (!result) {
+              delete stateMsg.state;
+              stateMsg.error={status: "error", error: device.name+" not found"}
+            }
+            send([stateMsg]);
+          }
+        });
       });
+      if (done) done();
     });
 
     this.buildStateObject= function (device,stateObject) {
@@ -159,31 +195,31 @@ module.exports = function (RED) {
     }
 
     // Format output Message
-    this.broker.on('stateMessage', function (msgOut) {
-      const triggerKeys = ['$stats', '$homie', '$nodes', '$extensions', '$state', '$fw', '$localip', '$mac', '$implementation'];
-      var log = "homie message arrived ("+node.stateDeviceID+"):";
-      if (msgOut===undefined) return;
-      if (node.stateDeviceID=='[any]' || node.stateDeviceID===msgOut.deviceId) {
-        if (triggerKeys.includes(msgOut.nodeId)) {
-          var a = msgOut.value;
-          var b = msgOut.valueBefore;
+    this.broker.on('message', function (msg, send, done) {
+      send = send || function() { node.send.apply(node,arguments) }
+      
+      if ((msg!==undefined) &&
+          (msg.typeId==='homieAttribute' || msg.typeId==='homieExtension') && 
+          (node.baseID==='[any]' || node.baseID===msg.baseId) && 
+          (node.deviceID==='[any]' || node.deviceID===msg.deviceId)) {
+
+        const triggerKeys = ['$stats', '$homie', '$nodes', '$extensions', '$state', '$fw', '$localip', '$mac', '$implementation'];
+        if (triggerKeys.includes(msg.nodeId)) {
+          var a = msg.value;
+          var b = msg.valueBefore;
           if (a != b) {
-            //console.log(msgOut);
-            if (!msgOut.hasOwnProperty('state')) {
-              msgOut.state={};
+            if (!msg.hasOwnProperty('state')) {
+              msg.state={};
             }
-            msgOut.state.$name=msgOut.deviceId;
-            msgOut.state[msgOut.propertyId]=msgOut.value;
-            log += " " + msgOut.deviceId + " " +msgOut.nodeId;
-            if (msgOut.propertyId) log += "/" + msgOut.propertyId;
-            log += "=" + msgOut.value;
-            node.prepareMsgOut(msgOut);
-            msgOut.topic= node.broker.brokerurl+'/'+node.broker.homieRoot+'/'+msgOut.deviceId;
-            node.send([msgOut]);
-            node.addToLog("debug",log);
+            msg.state.$name=msg.deviceId;
+            msg.state[msg.propertyId]=msg.value;
+            node.prepareMsgOut(msg);
+            msg.topic= node.broker.brokerurl+'/'+msg.baseId+'/'+msg.deviceId;
+            send([msg]);
           }
         }
       }
+      if (done) done();
     });
   }
 

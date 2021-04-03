@@ -13,7 +13,8 @@
       homieRoot: {value: '', required: false},
       storeGlobal: {value: false},
       homieDevices: [],
-      homieData: {}
+      homieData: {},
+      timeout: {value: 0, required:true}
     },
     credentials: {
       username: {type:"text"},
@@ -48,7 +49,7 @@
 </script>
 
 <script type="text/x-red" data-template-name="homie-convention-broker-config">
-  <div class="form-row">
+  <div class="text/html form-row">
     <label for="node-config-input-mqtt-host"><i class="fa fa-globe"></i> MQTT host</label>
     <input type="text" id="node-config-input-mqtt-host">
   </div>
@@ -97,9 +98,15 @@
   </div>
 
   <div class="form-row">
-    <label>&nbsp</label>
+    <label><i class="fa fa-database"></i> Context</label>
     <input type="checkbox" id="node-config-input-storeGlobal" style="display: inline-block; width: auto; vertical-align: top;">
-    <label for="node-config-input-storeGlobal" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> store homie device tree in global context store</label>
+    <label for="node-config-input-storeGlobal" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> expose homie device tree in global context</label>
+  </div>
+  
+  <div class="form-row">
+    <label for="node-config-input-timeout"><i class="fa fa-clock-o"></i> Timeout</label>
+    <input type="number" min="0" max="60" id="node-config-input-timeout" style="width: 30%;">
+    <label for="node-config-input-timeout" style="width: 70%;">&nbsp;&nbsp;sec for reading retained messages (0 = disabled)</label>
   </div>
 </script>
 

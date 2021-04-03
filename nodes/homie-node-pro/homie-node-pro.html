@@ -42,6 +42,11 @@
           <label for="node-input-exposeHomieNodes" style="width: 70%;">&nbsp;<i class="fa fa-database"></i>&nbsp;expose <code>homeNodes</code> in global context</label>
         </div>
         <div class="form-row">
+          <label>&nbsp;</label>
+          <input type="checkbox" id="node-input-queueMessages" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-queueMessages" style="width: 70%;">&nbsp;<i class="fa fa-database"></i>&nbsp;queue messages during startup</label>
+        </div>        
+        <div class="form-row">
           <label><i class="fa fa-code"></i> Expert</label>
           <input type="checkbox" id="node-input-customHomie" style="display: inline-block; width: auto; vertical-align: top;">
           <label for="node-input-customHomie" style="width: 70%;">&nbsp;<i class="fa fa-label"></i>&nbsp;use custom homie convention</label>
@@ -82,7 +87,7 @@
           <label for="node-input-exDeviceId"><i class="fa fa-crosshairs"></i> Device</label>
           <select id="node-input-exDeviceId" style="width: 100%;"></select>
         </div>
-        <div class="form-tips" style="width: 100%; height: 65px;" id="node-input-extensions-tips">
+        <div class="form-tips" style="height: 65px; max-width: none;" id="node-input-extensions-tips">
           <p>
             Hover over the items to get detailed information.
           </p>
@@ -118,7 +123,7 @@
 
   // resize editor or treeList to fill the remaining space (one editor per tab!)
   // called by oneditresize & tabs.onchange
-  var resizeTab= function(node, elementId) {
+  function resizeTab (node, elementId) {
     if (!node) return;
 
     // determine remaining vertical space
@@ -161,7 +166,7 @@
   }
 
   // create multiple editors
-  var createEditor= function(editors,id) {
+  function createEditor (editors,id) {
     editors[id] = RED.editor.createEditor({
         id: "node-input-"+id+"-editor",
         mode: "ace/mode/json",
@@ -185,7 +190,8 @@
     })
   }
 
-  var extensionsTreeCheck = function(id,event, item) {
+  // select all parents if a child is clicked
+  function extensionsTreeCheck (id,event, item) {
     var result = false;
     var checkParents = function(parent) {
       if (!parent.selected) result = true;
@@ -198,7 +204,8 @@
     return result;
   }
 
-  var cerateTreeList= function(treeLists,id) {
+  //create a treeList instance
+  function cerateTreeList (treeLists,id) {
     var node = this;
     treeLists[id] = $("<div>")
       .css({width: "100%", height: "250px"})
@@ -222,29 +229,29 @@
     treeLists[id].treeList('data',[{label:"empty"}]);
   }
 
-// collect selected attribute of treeList data
-function collectTeeLists(target, source) {
-  for (var index in source) {
-    if (!target.hasOwnProperty(source[index].label)) target[source[index].label]={};
-    target[source[index].label].selected = source[index].selected;
-    if (source[index].hasOwnProperty('children')) {
-      target[source[index].label].children={};
-      collectTeeLists(target[source[index].label].children, source[index].children);
+  // collect selected attribute of treeList data
+  function collectTeeLists(target, source) {
+    for (var index in source) {
+      if (!target.hasOwnProperty(source[index].label)) target[source[index].label]={};
+      target[source[index].label].selected = source[index].selected;
+      if (source[index].hasOwnProperty('children')) {
+        target[source[index].label].children={};
+        collectTeeLists(target[source[index].label].children, source[index].children);
+      }
     }
   }
-}
 
-// merge selections into treeList data
-function updateTeeList(data, selections) {
-  for (var index in data) {
-    if (selections.hasOwnProperty(data[index].label)) {
-      data[index].selected = selections[index].selected;
-    }
-    if (data[index].hasOwnProperty('children')) {
-      updateTeeList(data[index].children, selections[index].children);
+  // merge selections into treeList data
+  function updateTeeList(data, selections) {
+    for (var index in data) {
+      if (selections.hasOwnProperty(data[index].label)) {
+        data[index].selected = selections[index].selected;
+      }
+      if (data[index].hasOwnProperty('children')) {
+        updateTeeList(data[index].children, selections[index].children);
+      }
     }
   }
-}
 
 function extensionConfigEditPrepare(node, allowEmpty) {
 
@@ -381,6 +388,7 @@ function extensionConfigEditPrepare(node, allowEmpty) {
       infoHomie: {value: false},
       infoError: {value: false},
       exposeHomieNodes: {value: false},
+      queueMessages: {value: true},
       homieNodeConfig: {
         value: "{}",
         validate: function(value) {
