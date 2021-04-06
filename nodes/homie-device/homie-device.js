@@ -30,32 +30,7 @@ module.exports = function (RED) {
     this.infoTiming=config.infoTiming; // include Timing messages
     this.infoMqtt=config.infoMqtt; // include MQTT messages
     this.sendChangesOnly=config.sendChangesOnly; // include Timing messages
-    this.uiPlaceName = config.uiPlaceName; // Placeholder Text for uiDropdown
-    this.uiControlDropdown=config.uiControlDropdown; // convert $format to msg.options for uiDropdown
-    this.uiNode=config.uiNode; // type of node connected to
-    this.uiControl=config.uiControl; // convert $format if applicable;
-    this.uiControlMinMax=config.uiControlMinMax; // convert $format min:max to ui_control.min / max
-    this.uiLabel=config.uiLabel; // label ui elements (if possible);
-    this.uiColor1=config.uiColor1; // foreground color
-    this.uiBgColor1=config.uiBgColor1; // background color
-    this.uiColorON=config.uiColorON;
-    this.uiColorOFF=config.uiColorOFF;
-    this.uiColorPredicted=config.uiColorPredicted;
-    this.uiUseColorPredicted=config.uiUseColorPredicted;
-    this.uiColorPredictedOff=config.uiColorPredictedOff;
-    this.uiUseColorPredictedOff=config.uiUseColorPredictedOff;
-    this.uiFormat=config.uiFormat;
-    this.uiTooltip=config.uiTooltip; // tooltip
-    this.uiIcon1=config.uiIcon1; // icon 
-    this.uiIconON=config.uiIconON; // icon 
-    this.uiIconOFF=config.uiIconOFF; // icon 
-    this.labelName=config.labelName; // custom label;
-    this.uiSwitchPredicted=config.uiSwitchPredicted; // use predicted states for switches
-    this.uiSwitchColorPredictedON=config.uiSwitchColorPredictedON;
-    this.uiSwitchColorPredictedOFF=config.uiSwitchColorPredictedOFF;
-    this.uiSwitchIconPredictedON=config.uiSwitchIconPredictedON;
-    this.uiSwitchIconPredictedOFF=config.uiSwitchIconPredictedOFF;
-    this.uiFormatColor=config.uiFormatColor;
+    this.blockTimeout= Number(config.blockTimeout) || 0; // don't send new messages until last message is confirmed
 
     if ((typeof config.settable)=="string")  this.settable=(config.settable=="true");
      else this.settable=config.settable; // configure node as settable
@@ -342,7 +317,13 @@ module.exports = function (RED) {
       return "";
     }
 
-    this.on('input', function(msg) {
+    this.releaseBlockTimeout = function(node, property, msg) {
+      node.status({ fill: 'blue', shape: 'dot', text: `msg released after ${node.blockTimeout}ms`});
+      node.broker.sendToDevice(msg.base,msg.device,msg.node,msg.property,msg.payload,true);
+      delete property.blockTimeoutId;
+    }
+
+    this.nodeInput = function (msg) {
       var msgError = {status: "error"};
       msgError.function = "input"
       var msgOut = {};
@@ -455,7 +436,7 @@ module.exports = function (RED) {
                 return;
               }
             } else {
-              msgError.error = "Property "+msgOut.property+" of Node "+msgOut.node+" not has no $settable attribute. No output"
+              msgError.error = "Property "+msgOut.property+" of Node "+msgOut.node+" is not a $settable attribute. No output"
               node.send([null,msgError]);
               return;
             }
@@ -470,17 +451,27 @@ module.exports = function (RED) {
           return;
         }
 
-        // save new value as predicted in homieData
-        property.value=msgOut.payload; // finally we should have a matching value to send.
-        property.predicted=true; // mark value as predicted;
-        msgOut.predicted=property.predicted;
-
-        // FIRST send unaltered data to mqtt broker!
         if (property.$settable) setFlag=true; 
-        if (msgOut.homiePayload) node.broker.sendToDevice(msgOut.base,msgOut.device,msgOut.node,msgOut.property,msgOut.homiePayload,setFlag); // If a special homie payload exists send this one.
-        else  node.broker.sendToDevice(msgOut.base,msgOut.device,msgOut.node,msgOut.property,msgOut.payload,setFlag);
-        return;
 
+        if (setFlag && node.blockTimeout>0 && property.predicted===true) {
+          node.status({ fill: 'yellow', shape: 'dot', text: `msg queued ${node.blockTimeout}ms`});
+          property.lastValue = msgOut.payload;
+          if (property.blockTimeoutId!==undefined) clearTimeout(property.blockTimeoutId);
+          property.blockTimeoutId = setTimeout(node.releaseBlockTimeout, node.blockTimeout, node, property, msgOut);
+          node.addToLog("debug",`msg queued ${msgOut.property}=${msgOut.payload}`);
+        } else {
+          // save new value as predicted in homieData
+          property.value=msgOut.payload; // finally we should have a matching value to send.
+          property.lastValue=property.value;
+          property.predicted=true; // mark value as predicted;
+          msgOut.predicted=property.predicted;
+          
+          // FIRST send unaltered data to mqtt broker!
+          node.addToLog("info",`msg send ${msgOut.property}=${msgOut.payload}`);
+          if (msgOut.homiePayload) node.broker.sendToDevice(msgOut.base,msgOut.device,msgOut.node,msgOut.property,msgOut.homiePayload,setFlag); // If a special homie payload exists send this one.
+          else  node.broker.sendToDevice(msgOut.base,msgOut.device,msgOut.node,msgOut.property,msgOut.payload,setFlag);
+        }
+        return;
       }
 
       var sendByDevice = function (device) {
@@ -496,7 +487,7 @@ module.exports = function (RED) {
         return;
       }
       
-      node.addToLog("debug","Message arrived! topic="+msg.topic+" payload="+msg.payload);
+      node.addToLog("debug","Message arrived on input! topic="+msg.topic+" payload="+msg.payload);
       if (!msg.hasOwnProperty('topic)')) {
         msg.topic="";
       }
@@ -505,6 +496,7 @@ module.exports = function (RED) {
       if (setFlag) {
         splitted.pop();
       }
+
       if (msg.topic==="") {
         Object.keys(node.selectedNodes).forEach(key => {
           splitted = key.split('/'); 
@@ -551,11 +543,17 @@ module.exports = function (RED) {
         }
       }
 
+    };
+
+    this.on('input', function(msg) {
+      node.nodeInput(msg);
     });
 
     // Format output Message
     this.broker.on('message', function (msg, send, done) {
       send = send || function() { node.send.apply(node,arguments) }
+      node.addToLog("debug","Message arrived from broker topic="+msg.topic+" payload="+msg.payload);
+
       if (msg===undefined) {
         if (done) done();
         return;
@@ -642,6 +640,23 @@ module.exports = function (RED) {
       if (!node.infoAttributes) delete msg.property;
       if (!node.infoMqtt) delete msg.mqtt;
       if (!node.infoError && msg.error.status==='ok') delete msg.error;
+
+      if (!msg.setFlag) {
+        try {
+          let property = node.broker.homieData[msg.baseId][msg.deviceId][msg.nodeId][msg.propertyId]; 
+          if (property.hasOwnProperty("blockTimeoutId")) {
+            node.status({ fill: 'blue', shape: 'dot', text: `/set message confirmed`});
+            clearTimeout(property.blockTimeoutId);
+            delete property.blockTimeoutId;
+            node.addToLog('debug',`timer canceled!`);
+            property.predicted = false;
+            if (property.lastValue != msg.payload) {
+              node.addToLog('debug',` Resend ${msg.propertyId}=${property.lastValue}`);
+              node.nodeInput({topic:msg.baseId+'/'+msg.deviceId+'/'+msg.nodeId+'/'+msg.propertyId+'/set',payload:property.lastValue});
+            };
+          }
+        } catch (err) {};
+      }
       if (msg.error===undefined || msg.error.status!=='error') {
         send([msg,null]);
       } else {

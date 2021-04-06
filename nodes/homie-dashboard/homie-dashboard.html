@@ -6,6 +6,18 @@
     </div>
 
     <div class="form-row">
+      <label><i class="fa fa-ban"></i> /set</label>
+      <input type="checkbox" id="node-input-uiBlockSet" style="display: inline-block; width: auto; vertical-align: top;">
+      <label for="node-input-uiBlockSet" style="width: 70%;">&nbsp;&nbsp;block <b>/set</b> messages</code></label>
+    </div>
+
+    <div class="form-row">
+      <label><i class="fa fa-ban"></i> predicted</label>
+      <input type="checkbox" id="node-input-uiBlockPredicted" style="display: inline-block; width: auto; vertical-align: top;">
+      <label for="node-input-uiBlockPredicted" style="width: 70%;">&nbsp;&nbsp;block <b>predicted</b> messages</code></label>
+    </div>
+
+    <div class="form-row">
       <label for="node-input-uiNode"><i class="fa fa-tachometer"></i> Node</label>
       <select id="node-input-uiNode">
         <option value="none">none</option>
@@ -173,6 +185,14 @@
           <option value="device/node">Device/Node</option>
       </select>
     </div>
+    <div id="node-config-homie-labelOptions">
+      <div id="node-config-homie-labelOption-custom" style="display:none">
+        <div class="form-row">
+          <label for="node-input-labelName"><i class="fa fa-label"></i> Custom Label</label>
+          <input type="text" id="node-input-labelName" placeholder="$name if empty">
+        </div>
+      </div>
+    </div>
   </div>
 </script>
 
@@ -302,6 +322,8 @@ function configEditPrepareHomieDashboard(node) {
       name: {value: ''},
       addLabel: {value: 'none'},
       labelName: {value: ''},
+      uiBlockSet: {value: true},
+      uiBlockPredicted: {value: true},
       uiPlaceName: {value: ''}, // placeholder Name;
       uiNode: {value: 'none'}, // type of UI Node
       uiControlDropdown: {value: true}, // control dropdown via ui_control
@@ -350,36 +372,24 @@ function configEditPrepareHomieDashboard(node) {
   });
 </script>
 
-<script type="text/x-red" data-help-name="homie-convention-dashboard">
+<script type="text/html text/x-red" data-help-name="homie-convention-dashboard">
   <p> 
     <a href="https://homieiot.github.io/">
       <img src="https://homieiot.github.io/img/works-with-homie.png" alt="works with MQTT Homie">
     </a>
   </p>
   <p>
-    A message is emitted when a specific message for a homie device, node or property arrives. Optionally it sends attribute updates too.
-    Use the input to send messages to <i>settable</i> properties. 
+    The homie convention provides some auto discover features which can be used to configure dashboard nodes automatically. 
   </p>
   <p></p>
 	<b>Configuration</b>
-    <ul>
-        <li><b>Name :</b> Optionally specify a name</li>
-        <li><b>Broker :</b> Select the mqtt broker where your device is sending messages to.</li>
-    </ul>
-
-  <h3>basic configuration</h3>
-    <ul>
-      <li><b>Settable :</b> Properties list will only show settable properties.</li>
-      <li><b>Device :</b> Optionally select the device to address. If specified, it filters messages messages from a specific device.</li>
-      <li><b>Node :</b> Optionally select the node to address. If specified, it filters messages messages from a specific device.</li>
-      <li><b>Property :</b> Optionally select the property to address. If specified, the node only emmits updates from a specific property. Necessary for settable properties.</li>
-    </ul>
+  <ul>
+      <li><b>Name :</b> Optionally specify a name</li>
+      <li><b>block set :</b> Select to block /set messages in order to show only confirmed values.</li>
+      <li><b>block predicted :</b> Select to block predicted messages in order to show values confirmed by the device. Uncheck to use some features to indicate predicted values</li>
+  </ul>
 
   <h3>dashboard configuration</h3>
-    <p>
-        The homie node can do the configuration of dashboard nodes according to the information provided by the auto-discover functionality.
-        refer to the full documentation for details.
-    </p>
     <ul>
         <li><b>ui node :</b> select the type of node you like to connect to the output. Individual options will appear. Most of the options are set by using the ui_control object.</li>
         <li>button</li>
@@ -437,64 +447,20 @@ function configEditPrepareHomieDashboard(node) {
         <li><b>msg.label :</b> Select add label (i.e. for chart ui node) $name attribute will be used.</li>
     </ul>
 
-  <h3>extra configuration</h3>
-    <p>
-        Additional information like timing, errors and atrributes can be added to the msg object
-    </p>
-    <ul>
-        <li><b>msg.timing :</b> Select to receive timing information.</li>
-        <li><b>msg.error :</b> Select to receive error information. All Errors will be sent on 2nd output</li>
-        <li><b>msg.attributes :</b> Select to receive attributes information.</li>
-   	 </ul>
-	<p></p>
-
   <h3>Inputs</h3>
     <dl class="message-properties">
-        <dt>payload
-            <span class="property-type">number | string | buffer</span>
+        <dt>msg
+            <span class="property-type">object</span>
         </dt>
-        <dd> the payload of the message to send to the homie device. </dd>
-        <dt class="optional">topic <span class="property-type">string</span></dt>
-        <dd> the homie topic to publish to. This can override the node configuration. If empty the node settings will be used. If not matching a known property topic will be ignored.</dd>
+        <dd> data from a homie device node or homie pro node.</dd>
     </dl>
 
  <h3>Outputs</h3>
      <ol class="node-ports">
          <li>Standard output
              <dl class="message-properties">
-                 <dt>msg.payload <span class="property-type">string | number</span></dt>
-                 <dd>the standard output of a sucsessfull received update. Depending on the datatype as a String or number.</dd>
-
-                 <dt>msg.topic <span class="property-type">string</span></dt>
-                 <dd>Topic of the value: baseID/deviceID/nodeID/propertyID.</dd>
-
-                 <dt>msg.device <span class="property-type">string</span></dt>
-                 <dd>Name of the device the message came from</dd>
-
-                 <dt>msg.node <span class="property-type">string</span></dt>
-                 <dd>Name of the node the message came from</dd>
-
-                 <dt>msg.property <span class="property-type">string</span></dt>
-                 <dd>Name of the property emitting this message</dd>
-
-                 <dt>msg.attributes.datatype <span class="property-type">string</span></dt>
-                 <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$datatype</a> attribute.</dd>
-
-                 <dt>msg.attributes.format <span class="property-type">string</span></dt>
-                 <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$format</a> attribute.</dd>
- 
-                 <dt>msg.attributes.unit <span class="property-type">string</span></dt>
-                 <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$unit</a> attribute.</dd>
-
-                 <dt>msg.label <span class="property-type">string</span></dt>
-                 <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$name</a> attribute. Useful for chart UI node.</dd>
-
-             </dl>
-         </li>
-         <li>Standard error
-             <dl class="message-properties">
-                 <dt>payload <span class="property-type">object</span></dt>
-                 <dd>the standard error of the command.</dd>
+                 <dt>msg<span class="property-type">object</span></dt>
+                 <dd>message prepared for selected dashboard nodes.</dd>
              </dl>
          </li>
      </ol>

@@ -142,6 +142,11 @@
           <input type="checkbox" id="node-input-sendChangesOnly" style="display: inline-block; width: auto; vertical-align: top;">
           <label for="node-input-sendChangesOnly" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> emit <b>changed values</b> only</label>
         </div>
+        <div class="form-row">
+          <label for="node-input-blockTimeout"><i class="fa fa-clock-o"></i> Block</label>
+          <input type="number" min="0" max="10000" step="100" id="node-input-blockTimeout" style="width: 15%;">
+          &nbsp;&nbsp;ms or last message confirmed
+        </div>
       </div>
     </div>
   </div>
@@ -279,100 +284,14 @@
 
 	function configEditPrepare(node, allowEmpty) {
 
-    function updateProperty(cntrlConfig, valueID, itemName) {
-      if ( cntrlConfig ) {
-        var config = {
-          name: cntrlConfig.name,
-          broker: cntrlConfig.id,
-          // field name to query
-          itemID: valueID,
-          // filters to query
-          baseID: $('#node-input-baseID').val() || node.baseID,
-          deviceID: $('#node-input-deviceID').val() || node.deviceID,
-          nodeID: $('#node-input-nodeID').val()  || node.nodeID,
-          propertyID: $('#node-input-propertyID').val() || node.propertyID,
-          extensionID: $('#node-input-extensionID').val() || node.extensionID,
-          queryValueID: valueID
-        }
-        console.log("updateProperty ("+itemName+") = ",cntrlConfig,config);
-        $.getJSON("homieConvention/propertyInfo", config)
-          .done( function(data) {
-            console.log("homieConvention/propertyInfo: "+ JSON.stringify(data));
-          })
-          .fail( function(e1, e2, e3) {
-            console.log("homieConvention/propertyInfo: error e1=" + JSON.stringify(e1));
-            console.log("homieConvention/propertyInfo: error e2=" + JSON.stringify(e2));
-            console.log("homieConvention/propertyInfo: error e3=" + JSON.stringify(e3));
-          });        }
-    }
-
     function setColourPickerColour(id, val, ed) {
                   $("#"+id).val(val);
                   $("#"+id).css("background-color", val);
               }
 
-    function updateUiNodeOptions(cntrlConfig, valueID, itemName) {
-      $("#node-config-homie-uiOptions").children().hide();
-      switch(itemName) {
-        case 'uiNumeric':
-          $("#node-config-homie-uiOption-uiMinMax").show();
-          $("#node-config-homie-uiOption-uiFormat").show();
-          break;
-        case 'uiGauge':
-          $("#node-config-homie-uiOption-uiMinMax").show();
-          break;
-        case 'uiSlider':
-          $("#node-config-homie-uiOption-uiMinMax").show();
-          break;
-        case 'uiChart':
-          $("#node-config-homie-uiOption-uiMinMax").show();
-          break
-        case 'uiDropdown':
-          $("#node-config-homie-uiOption-uiDropdown").show();
-          break;
-        case 'uiButton':
-          $("#node-config-homie-uiOption-uiColorButton").show();
-          $("#node-config-homie-uiOption-uiTooltip").show();
-          $("#node-config-homie-uiOption-uiIcon1").show();
-          break;
-        case 'uiButtonSwitch':
-          $("#node-config-homie-uiOption-uiColorButton").show();
-          $("#node-config-homie-uiOption-uiColorSwitch").show();
-          $("#node-config-homie-uiOption-uiColorPredicted").show();
-          $("#node-config-homie-uiOption-uiTooltip").show();
-          $("#node-config-homie-uiOption-uiIcon1").show();
-          break;
-        case 'uiSwitch':
-          $("#node-config-homie-uiOption-uiColorSwitch").show();
-          $("#node-config-homie-uiOption-uiTooltip").show();
-          $("#node-config-homie-uiOption-uiIcon2").show();
-          $("#node-config-homie-uiOption-uiSwitchPredicted").show();
-          if ($('#node-input-uiSwitchPredicted').is(':checked')) $("#node-config-homie-uiOption-uiUseSwitchPredicted").show();
-            else $("#node-config-homie-uiOption-uiUseSwitchPredicted").hide();
-          break;
-        case 'uiText':
-          $("#node-config-homie-uiOption-uiFormat").show();
-          break;
-        case 'uiColor':
-          $("#node-config-homie-uiOption-uiColorPicker").show();
-          break;
-      }
-    };
-
-    function updateUiLabelOptions(cntrlConfig, valueID, itemName) {
-      $("#node-config-homie-labelOptions").children().hide();
-      switch(itemName) {
-        case 'none': break;
-        case 'custom': 
-          $("#node-config-homie-labelOption-" + itemName).show();
-          $("#node-config-homie-labelOption-name").show();
-          break;
-        default: $("#node-config-homie-labelOption-name").show();
-      }
-    };
-
-    function updateTreeList(node,cntrlConfig) {
+    function updateTreeList(node) {
       if (!node.treeLists['homieTree'].updated) {
+        var cntrlConfig = RED.nodes.node($('#node-input-broker').val());
         if ( cntrlConfig ) {
           var config = {
             name: cntrlConfig.name,
@@ -401,10 +320,10 @@
       }
     }
 
-    function updateItemSelection(cntrlConfig, valueID, value) {
-
+    function updateItemSelection(valueID, value) {
       var itemSelectionEl = $('#node-input-'+ valueID);
       var treeData = [];  
+      var cntrlConfig = RED.nodes.node($('#node-input-broker').val());
       if ( cntrlConfig ) {
         var config = {
           name: cntrlConfig.name,
@@ -420,8 +339,14 @@
           addLabel: $('#node-input-addLabel').val() || node.addLabel,
           settable: $('#node-input-settable').is(':checked')
         }
-        
+        /*
         console.log("updateItemSelection ("+valueID+"="+value+") = ",config);
+        console.log(" baseID  : ",$('#node-input-baseID').val());
+        console.log(" deviceID  : ",$('#node-input-deviceID').val());
+        console.log(" nodeID    : ",$('#node-input-nodeID').val());
+        console.log(" propertyID: ",$('#node-input-propertyID').val());
+        console.log(" settable  : ",$('#node-input-settable').is(':checked'));
+        */
         $.getJSON("homieConvention/deviceList", config)
           .done( function(data) {
             console.log(config.itemID,data);
@@ -438,8 +363,8 @@
                 itemSelectionEl.append('<option value="'+item+'">' + item + '</option>');
               });
               console.log(valueID,$('#node-input-'+valueID).val() || node[valueID],value);
-              itemSelectionEl.val($('#node-input-'+valueID).val() || node[valueID]);
-              $('#node-input-'+valueID).change();
+              if (!items.includes(node[valueID])) node[valueID]='[any]';
+              itemSelectionEl.val(node[valueID]);
             } else { // fill treeList with selected properties
               treeList.treeList('data',items);
             }
@@ -452,93 +377,50 @@
 
     $('#node-input-filterTree').on("click",function() { // apply filter toggled
       node.treeLists['homieTree'].updated=false;
-      updateTreeList(node,RED.nodes.node($('#node-input-broker').val()));
+      updateTreeList(node);
     });
 
     $('#node-input-refreshTree').on("click",function() { // reload Homie Tree
       node.treeLists['homieTree'].updated=false;
-      updateTreeList(node,RED.nodes.node($('#node-input-broker').val()));
+      updateTreeList(node);
     });
 
     $('#node-input-clearSelection').on("click",function() { // reload Homie Tree
       node.treeLists['homieTree'].tempSelection={};
       node.treeLists['homieTree'].updated=false;
-      updateTreeList(node,RED.nodes.node($('#node-input-broker').val()));
+      updateTreeList(node);
     });
 
-    setColourPickerColour("node-input-uiColor1", node.uiColor1);
-    $('#node-input-uiColor1').change(function(ev) {
-      setColourPickerColour("node-input-uiColor1", $('#node-input-uiColor1').val() || node.uiColor1);
+    $('#node-input-broker').change(function(ev) { // update device list if broker is changed (nodes and properties should update subsequently)
+      updateItemSelection('baseID', $('#node-input-baseID').val() || node.baseID);
+      updateTreeList(node);
     });
-    setColourPickerColour("node-input-uiBgColor1", node.uiBgColor1);
-    $('#node-input-uiBgColor1').change(function(ev) {
-      setColourPickerColour("node-input-uiBgColor1", $('#node-input-uiBgColor1').val() || node.uiBgColor1);
-    });
-    setColourPickerColour("node-input-uiColorON", node.uiColorON);
-    $('#node-input-uiColorON').change(function(ev) {
-      setColourPickerColour("node-input-uiColorON", $('#node-input-uiColorON').val() || node.uiColorON);
-    });
-    setColourPickerColour("node-input-uiColorOFF", node.uiColorOFF);
-    $('#node-input-uiColorOFF').change(function(ev) {
-      setColourPickerColour("node-input-uiColorOFF", $('#node-input-uiColorOFF').val() || node.uiColorOFF);
-    });
-    setColourPickerColour("node-input-uiColorPredicted", node.uiColorPredicted);
-    $('#node-input-uiColorPredicted').change(function(ev) {
-      setColourPickerColour("node-input-uiColorPredicted", $('#node-input-uiColorPredicted').val() || node.uiColorPredicted);
-    });
-    setColourPickerColour("node-input-uiColorPredictedOff", node.uiColorPredictedOff);
-    $('#node-input-uiColorPredictedOff').change(function(ev) {
-      setColourPickerColour("node-input-uiColorPredictedOff", $('#node-input-uiColorPredictedOff').val() || node.uiColorPredictedOff);
-    });
-    setColourPickerColour("node-input-uiSwitchColorPredictedON", node.uiSwitchColorPredictedON);
-    $('#node-input-uiSwitchColorPredictedON').change(function(ev) {
-      setColourPickerColour("node-input-uiSwitchColorPredictedON", $('#node-input-uiSwitchColorPredictedON').val() || node.uiSwitchColorPredictedON);
-    });
-    setColourPickerColour("node-input-uiSwitchColorPredictedOFF", node.uiSwitchColorPredictedOFF);
-    $('#node-input-uiSwitchColorPredictedOFF').change(function(ev) {
-      setColourPickerColour("node-input-uiSwitchColorPredictedOFF", $('#node-input-uiSwitchColorPredictedOFF').val() || node.uiSwitchColorPredictedOFF);
-    });
-
-    $('#node-input-uiSwitchPredicted').change(function(ev) {
-      if ($('#node-input-uiNode').val()=='uiSwitch' && $('#node-input-uiSwitchPredicted').is(':checked')) $("#node-config-homie-uiOption-uiUseSwitchPredicted").show();
-        else $("#node-config-homie-uiOption-uiUseSwitchPredicted").hide();
-    });
-
-		$('#node-input-broker').change(function(ev) { // update device list if broker is changed (nodes and properties should update subsequently)
-      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'baseID', $('#node-input-baseID').val() || node.baseID);
-      updateTreeList(node,RED.nodes.node($('#node-input-broker').val()));
-		});
 		$('#node-input-baseID').change(function(ev) {
-      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'deviceID', $('#node-input-deviceID').val() || node.deviceID);
-      lastBaseID=$('#node-input-baseID').val();
+      updateItemSelection('deviceID', $('#node-input-deviceID').val() || node.deviceID);
+      // lastBaseID=$('#node-input-baseID').val();
 		});
 		$('#node-input-deviceID').change(function(ev) {
-      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'nodeID', $('#node-input-nodeID').val() || node.nodeID);
+      updateItemSelection('nodeID', $('#node-input-nodeID').val() || node.nodeID);
       if ($('#node-input-nodeID').val()=="[any]"){ // update property list if any node selected
-        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
-        updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'extensionID', $('#node-input-extensionID').val() || node.extensionID);
+        updateItemSelection('propertyID', $('#node-input-propertyID').val() || node.propertyID);
+        updateItemSelection('extensionID', $('#node-input-extensionID').val() || node.extensionID);
       }
       if (lastDeviceID!=$('#node-input-deviceID').val()) { // update tree List if Device ID differs.
-        // updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
+        // updateItemSelection('treeList', $('#node-input-propertyID').val() || node.propertyID);
       }
-      lastDeviceID=$('#node-input-deviceID').val();
+      // lastDeviceID=$('#node-input-deviceID').val();
 		});
 		$('#node-input-nodeID').change(function(ev) { // update property List if node changes
-      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
-      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'extensionID', $('#node-input-extensionID').val() || node.extensionID);
-      lastNodeID=$('#node-input-nodeID').val();
+      updateItemSelection('propertyID', $('#node-input-propertyID').val() || node.propertyID);
+      updateItemSelection('extensionID', $('#node-input-extensionID').val() || node.extensionID);
+      //lastNodeID=$('#node-input-nodeID').val();
     });
     $('#node-input-propertyID').change(function(ev) { // update property List if property selected
-      // updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'treeList', $('#node-input-propertyID').val() || node.propertyID);
-    });
-    $('#node-input-uiNode').change(function(ev) { // update uiNode features
-      updateUiNodeOptions(RED.nodes.node($('#node-input-broker').val()),'', $('#node-input-uiNode').val() || node.uiNode);
-    });
-    $('#node-input-addLabel').change(function(ev) { // update uiLabel features
-      updateUiLabelOptions(RED.nodes.node($('#node-input-broker').val()),'', $('#node-input-addLabel').val() || node.addLabel);
+      // updateItemSelection('treeList', $('#node-input-propertyID').val() || node.propertyID);
+      // lastPropertyID=$('#node-input-propertyID').val();
     });
     $('#node-input-settable').on("click",function() { // re-update property list if $settable filter setting is changed
-      updateItemSelection(RED.nodes.node($('#node-input-broker').val()),'propertyID', $('#node-input-propertyID').val() || node.propertyID);
+      updateItemSelection('propertyID', $('#node-input-propertyID').val() || node.propertyID);
     });
 	}
 
@@ -565,33 +447,11 @@
       infoMqtt: {value: true},
       infoError: {value: true},
       sendChangesOnly: {value: false},
+      blockTimeout: {value: 0},
       addLabel: {value: 'none'},
       labelTopic: {value: false},
       labelPayload: {value: true},
       labelName: {value: ''},
-      uiPlaceName: {value: ''}, // placeholder Name;
-      uiNode: {value: 'none'}, // type of UI Node
-      uiControlDropdown: {value: true}, // control dropdown via ui_control
-      uiControlMinMax: {value: true}, // control min max via ui_control
-      uiColor1: {value: '#FFFFFF'}, // foreground colors
-      uiBgColor1: {value: '#FFFFFF'}, // background colors
-      uiColorON: {value: '#FFFFFF'},
-      uiColorOFF: {value: '#FFFFFF'},
-      uiColorPredicted: {value: '#FFFFFF'},
-      uiUseColorPredicted: {value: false},
-      uiColorPredictedOff: {value: '#FFFFFF'},
-      uiUseColorPredictedOff: {value: false},
-      uiFormat: {value: false},
-      uiTooltip: {value: ''}, // tooltip Text
-      uiIcon1: {value: ''}, // icon
-      uiIconON: {value: ''}, // ON icon
-      uiIconOFF: {value: ''}, // OFF icon
-      uiSwitchPredicted: {value: false}, // use predicted state for switches
-      uiSwitchColorPredictedON: {value: '#AAAAAA'},
-      uiSwitchColorPredictedOFF: {value: '#AAAAAA'},
-      uiSwitchIconPredictedON: {value: 'fa-toggle-on'},
-      uiSwitchIconPredictedOFF: {value: 'fa-toggle-off'},
-      uiFormatColor: {value: 'homieString'},
       settable: {value: false},
       filterTree: {value: false}
     },
@@ -714,7 +574,7 @@
       All available homie nodes are shown as a collapsible tree view. Select the properties you like to get updates emitted. All sub branches will be emitted.
     </p>
     <ul>
-      <li><b>apply filter :</b> Use filer set on the filter tab instead of individual selected propertoes.</li>
+      <li><b>apply filter :</b> Use filer set on the filter tab instead of individual selected properties.</li>
       <li><b>clear selection :</b> clear all selections to easily start over</li>
       <li><b>update :</b> read latest set of nodes from Node-RED server .</li>
     </ul>
@@ -729,17 +589,20 @@
        <li><b>node :</b> select one particular or any node by name</li>
        <li><b>property :</b> select one particular or any property by name</li>
        <li><b>extension :</b> select one particular or any property provided by extensions</li>
-
+    </ul>
   <h3>extra configuration</h3>
     <p>
-        Additional information like timing, errors and atrributes can be added to the msg object
+        Additional information like timing, errors and attributes can be added to the msg object
     </p>
     <ul>
         <li><b>msg.timing :</b> Select to receive timing information.</li>
-        <li><b>msg.error :</b> Select to receive error information. All Errors will be sent on 2nd output</li>
+        <li><b>msg.error :</b> Select to receive error information. Errors always will be sent on 2nd output</li>
         <li><b>msg.property :</b> Select to receive attributes information.</li>
         <li><b>msg.mqtt :</b> Select to receive additional mqtt information.</li>
         <li><b>changed values only :</b> Select to receive data only if it differs from previous.</li>
+        <li><b>block new values until confirmed :</b> >0ms to block sending new messages until the last message is confirmed or timeout reached. 
+            Latest update is stored and will be sent after confirmation or timeout.
+            This feature is useful to limit sending frequent updates synced to device capabilities and not filling the queue on the broker.</li>
    	 </ul>
 	<p></p>
 
@@ -757,32 +620,29 @@
      <ol class="node-ports">
          <li>Standard output
              <dl class="message-properties">
-                 <dt>msg.payload <span class="property-type">string | number</span></dt>
+                 <dt>msg.payload <span class="property-type">string</span></dt>
+                 <dd>unaltered message form the device.</dd>
+
+                 <dt>msg.value <span class="property-type">string | number</span></dt>
                  <dd>the standard output of a sucsessfull received update. Depending on the datatype as a String or number.</dd>
+
+                 <dt>msg.setflag <span class="property-type">boolean</span></dt>
+                 <dd>true if data was received by a <b>/set</b> message</dd>
+
+                 <dt>msg.predicted <span class="property-type">boolean</span></dt>
+                 <dd>true if data not confirmed by the device</dd>
 
                  <dt>msg.topic <span class="property-type">string</span></dt>
                  <dd>Topic of the value: baseID/deviceID/nodeID/propertyID.</dd>
 
-                 <dt>msg.device <span class="property-type">string</span></dt>
-                 <dd>Name of the device the message came from</dd>
+                 <dt>msg.device <span class="property-type">object</span></dt>
+                 <dd>Detailed information of the device</dd>
 
-                 <dt>msg.node <span class="property-type">string</span></dt>
-                 <dd>Name of the node the message came from</dd>
+                 <dt>msg.node <span class="property-type">object</span></dt>
+                 <dd>Detailed information of the node</dd>
 
-                 <dt>msg.property <span class="property-type">string</span></dt>
-                 <dd>Name of the property emitting this message</dd>
-
-                 <dt>msg.attributes.datatype <span class="property-type">string</span></dt>
-                 <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$datatype</a> attribute.</dd>
-
-                 <dt>msg.attributes.format <span class="property-type">string</span></dt>
-                 <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$format</a> attribute.</dd>
- 
-                 <dt>msg.attributes.unit <span class="property-type">string</span></dt>
-                 <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$unit</a> attribute.</dd>
-
-                 <dt>msg.label <span class="property-type">string</span></dt>
-                 <dd>value of the <a href="https://homieiot.github.io/specification/spec-core-v3_0_1/#property-attributes">$name</a> attribute. Useful for chart UI node.</dd>
+                 <dt>msg.property <span class="property-type">object</span></dt>
+                 <dd>Detailed information of the property</dd>
 
              </dl>
          </li>

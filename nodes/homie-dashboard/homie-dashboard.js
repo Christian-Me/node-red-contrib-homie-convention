@@ -9,6 +9,8 @@ module.exports = function (RED) {
 
     this.log = {};
     this.addLabel=config.addLabel; // include msg.label
+    this.uiBlockSet=config.uiBlockSet; // block set messages
+    this.uiBlockPredicted=config.uiBlockPredicted; // block set messages
     this.uiPlaceName = config.uiPlaceName; // Placeholder Text for uiDropdown
     this.uiControlDropdown=config.uiControlDropdown; // convert $format to msg.options for uiDropdown
     this.uiNode=config.uiNode; // type of node connected to
@@ -58,7 +60,7 @@ module.exports = function (RED) {
     this.sendLog = function(type) {
       if (!node.log) return false;
       if (node.log[type]) {
-        RED.log[type]("[homie.device:"+node.name+"] "+node.log[type]);
+        RED.log[type]("[homie.dashboard:"+node.name+"] "+node.log[type]);
         delete node.log[type];
       } else return false;
       return true;
@@ -327,31 +329,40 @@ module.exports = function (RED) {
       return "";
     }
 
-    this.addLabel = function(msg) {
+    this.msgAddLabel = function(msg) {
       msg.label = msg.deviceName;
-      switch (node.addLabel) {
-        case 'custom':  
-          msg.label = node.labelName;
-          break;
-        case 'device': msg.label = msg.deviceName;
-          break;
-        case 'node': msg.label = msg.nodeName;
-          break;
-        case 'property':  msg.label = msg.propertyName;
-          break;
-        case 'device/node': msg.label = msg.deviceName+"/"+msg.nodeName;
-          break;
-        case 'device/node/property': msg.label = msg.deviceName+"/"+msg.nodeName+"/"+msg.propertyName;
-          break;
+      try {
+        switch (node.addLabel) {
+          case 'custom':  
+            msg.label = node.labelName;
+            break;
+          case 'device': msg.label = msg.device.name;
+            break;
+          case 'node': msg.label = msg.node.name;
+            break;
+          case 'property':  msg.label = msg.property.name;
+            break;
+          case 'device/node': msg.label = msg.device.name+"/"+msg.node.name;
+            break;
+          case 'device/node/property': msg.label = msg.device.name+"/"+msg.node.name+"/"+msg.property.name;
+            break;
+        }
+      }
+      catch (err) {
+        msg.label = "unknown"
       }
     }
 
     this.on('input', function(msg, send, done) {
       send = send || function() { node.send.apply(node,arguments) }
-      node.addToLog("info","Message arrived! topic="+msg.topic+" payload="+msg.payload);
-      if (node.addUiControl(msg)) {
-        node.addLabel(msg);
-        send(msg);
+      node.addToLog("trace","Message arrived! topic="+msg.topic+" payload="+msg.payload);
+      if ((node.uiBlockSet && msg.setFlag===true) || (node.uiBlockPredicted && msg.predicted===true)) {
+        node.addToLog("trace",`Message blocked!`);
+      } else {
+        if (node.addUiControl(msg)) {
+          node.msgAddLabel(msg);
+          send(msg);
+        }
       }
       if (done) done();
     });

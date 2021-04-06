@@ -503,7 +503,7 @@ module.exports = function (RED) {
       return resultString;
     }
 
-    this.formatStringToValue = function (datatype,format,property,payload) {
+    this.formatStringToValue = function (datatype,format,property,payload,name) {
 
       var parseISO8601Duration = function (iso8601Duration) {
         var iso8601DurationRegex = /(-)?P(?:([.,\d]+)Y)?(?:([.,\d]+)M)?(?:([.,\d]+)W)?(?:([.,\d]+)D)?T(?:([.,\d]+)H)?(?:([.,\d]+)M)?(?:([.,\d]+)S)?/;
@@ -528,16 +528,13 @@ module.exports = function (RED) {
       };
 
       let result = false;
-      if (datatype===undefined) {
-        datatype=property.$datatype
-      } else {
-        property.$datatype=datatype;
-      }
-      if (format===undefined) {
-        format=property.$format;
-      } else {
-        property.$format=format;
-      }
+      if (datatype===undefined) datatype=property.$datatype;
+      if (format===undefined) format=property.$format;
+      if (name===undefined) name=property.$name;
+      property.$datatype=datatype;
+      property.$format=format;
+      property.$name=name;
+      
       property.payload=payload;
       switch (datatype) {
         case 'integer': // format integer Value
@@ -669,6 +666,8 @@ module.exports = function (RED) {
       var baseId = splitted.shift();
       //if (baseId==='devices') node.addToLog('info',`msg arrived: ${topic}=${payload} ${(packet.retain)? "[retained]":""}`);
       var deviceId = splitted.shift();
+      var nodeId = splitted[0];
+      var propertyId = splitted[1];
       var msgOut = {
         'topic':topic,
         'payload':payload,
@@ -716,8 +715,9 @@ module.exports = function (RED) {
 
         }
       }
-//      if (topic.startsWith('homie/sonoff-mini-02')) node.addToLog('info',`msg arrived: ${topic}=${message.toString()} ${(packet.retain)? "[retained]":""}`);
-//      return;
+      if (topic.startsWith('plants/LED-1ch10W-01/DIMMERS/ch1')) {
+         // node.addToLog('info',`msg arrived: ${topic}=${message.toString()} ${(packet.retain)? "[retained]":""}`);
+      }
       // New homie device detected
       if (!node.homieData[baseId].hasOwnProperty(deviceId)) {
         node.homieData[baseId][deviceId]={};
@@ -740,7 +740,6 @@ module.exports = function (RED) {
         if (node.hasOwnProperty('_validated') && node._validated) return [];
         var missingProperties = [];
         if (!def) {
-          console.log(node,def);
           return missingProperties;
         }
         Object.keys(def).forEach(defKey => {
@@ -809,6 +808,8 @@ module.exports = function (RED) {
         } else {
           msg.value=homieData._property.value;
           homieData._validated = true;
+          homieData.predicted = false;
+          homieData.value = homieData._property.value;
           msg.predicted = false;
           addStatics(homieData);
           msg.timing=homieData._timing;
@@ -820,7 +821,7 @@ module.exports = function (RED) {
 
       // ----------------------------------------------------------
       // Analyse homie message: update homie data && msg object
-      // this function is called recursively
+      // this function is called recursively!
       // ----------------------------------------------------------
       var dispatchHomie = function (homieTopic, payload, homieData, msg, def) {
         const property = homieTopic.shift();
@@ -844,8 +845,10 @@ module.exports = function (RED) {
             homieData._missingProperties=validateNode(homieData,def);
             msg.typeId="homieAttribute";
             if (!msg.hasOwnProperty('property')) msg.property = {};
+            msg.property.$name =  (def[property]) ? def[property].$name : undefined;
             msg.property.$datatype = (def[property]) ? def[property].$datatype : undefined;
             msg.property.$format = (def[property]) ? def[property].$format : undefined;
+            msg.property.$settable = (def[property]) ? def[property].$settable : undefined;
 
             // if property is complete handle out of order payloads
             if (homieData.hasOwnProperty('_missingProperties') && homieData._missingProperties.length===0 &&homieData.hasOwnProperty('_tempPayload')) {
@@ -883,13 +886,13 @@ module.exports = function (RED) {
               }
             }
             if (homieTopic.length===2 && homieTopic[1]=="set") {
-              msg.predicted=true;
+              homieData[property].predicted=true;
+              msg.predicted=homieData[property].predicted;
             } else {
               msg.nodeId=property;
             }
             success = dispatchHomie(homieTopic, payload, homieData[property], msg, def[defProperty] )
           } else { // property
-            msg.propertyId=property;
             msg.typeId=(property.startsWith('$')) ? "homieProperty" : "homieData";
             if (property==='set') { // property/set detected
               msg.property={};
@@ -901,9 +904,11 @@ module.exports = function (RED) {
                 msg.value = msg.property.value;
                 msg.setFlag = true;
               }
-              msg.predicted = true;
+              homieData.predicted=(homieData.value!=homieData.set);
+              msg.predicted = homieData.predicted;
             } 
             else { // property update detected
+              msg.propertyId=property;
               if (!homieData.hasOwnProperty(property)) {
                 homieData[property]={
                   _property : {},
@@ -981,9 +986,32 @@ module.exports = function (RED) {
         return success;
       }
 
+      var addHomieProperties = function (msg) {
+        if (baseId!==undefined) {
+          msg.homie = {id : baseId};
+        }
+        if (deviceId!==undefined) {
+          if (!msg.hasOwnProperty("device")) msg.device={};
+          msg.device.id = deviceId;
+          msg.device.name = node.homieData[baseId][deviceId].$name;
+        } else return;
+        if (nodeId!==undefined) {
+          if (!msg.hasOwnProperty("node")) msg.node={};
+          msg.node.id = nodeId;
+          msg.node.name = node.homieData[baseId][deviceId][nodeId].$name;
+        } else return;
+        if (propertyId!==undefined) {
+          if (!msg.hasOwnProperty("property")) msg.property={};
+          msg.propertyId = propertyId;
+          msg.property.id = propertyId;
+          msg.property.name = node.homieData[baseId][deviceId][nodeId][propertyId].$name;
+        } else return;
+      } 
 
       success = dispatchHomie(Array.from(splitted), payload, node.homieData[baseId][deviceId], msgOut ,node.getHomieConvention(node.homieData[baseId][deviceId]));
       if (success) {
+        addHomieProperties(msgOut);
+        node.addToLog("trace",`emit message ${msgOut.topic}=${msgOut.payload}`);
         node.emit('message', msgOut);
       } else {
         for (let extension of Object.keys(node.homieExtensions)) {
@@ -1020,7 +1048,6 @@ module.exports = function (RED) {
     this.client.on('error', function () {
       node.addToLog("error","MQTT client error ("+node.brokerurl+")");
       node.setState('error');
-      console.log(node.client);
     });
 
     this.on('close', function (done) {

@@ -486,7 +486,7 @@ module.exports = function (RED) {
           return true;
         }
       } 
-      node.addToLog("info",`  publishMqttMessage: ${topic} = "${value}" retained:${retained}`);
+      node.addToLog("debug",`  publishMqttMessage: ${topic} = "${value}" retained:${retained}`);
       node.publishMessage(baseId,deviceId,topic,value,retained);
     }
  
@@ -569,7 +569,7 @@ module.exports = function (RED) {
       node.mqttConnections[baseId+'/'+deviceId].broker.on('message', this.brokerMessage);
 
       var stateInterval = function(base, path, configProperty) {
-        node.addToLog("info",`interval for ${path}`);
+        node.addToLog("debug",`interval for ${path}`);
         var pathSplitted = path.split('/');
         if (base._config[configProperty].hasOwnProperty('increment')) {
           base[configProperty]+=base._config[configProperty].increment;
