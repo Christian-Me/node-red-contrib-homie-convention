@@ -284,11 +284,6 @@
 
 	function configEditPrepare(node, allowEmpty) {
 
-    function setColourPickerColour(id, val, ed) {
-                  $("#"+id).val(val);
-                  $("#"+id).css("background-color", val);
-              }
-
     function updateTreeList(node) {
       if (!node.treeLists['homieTree'].updated) {
         var cntrlConfig = RED.nodes.node($('#node-input-broker').val());
@@ -363,7 +358,7 @@
                 itemSelectionEl.append('<option value="'+item+'">' + item + '</option>');
               });
               console.log(valueID,$('#node-input-'+valueID).val() || node[valueID],value);
-              if (!items.includes(node[valueID])) node[valueID]='[any]';
+              if (!items.includes(node[valueID])) node[valueID]='[any]'; // fallback to [any] if last selection does not exists anymore
               itemSelectionEl.val(node[valueID]);
             } else { // fill treeList with selected properties
               treeList.treeList('data',items);
@@ -397,7 +392,7 @@
     });
 		$('#node-input-baseID').change(function(ev) {
       updateItemSelection('deviceID', $('#node-input-deviceID').val() || node.deviceID);
-      // lastBaseID=$('#node-input-baseID').val();
+      lastBaseID=$('#node-input-baseID').val();
 		});
 		$('#node-input-deviceID').change(function(ev) {
       updateItemSelection('nodeID', $('#node-input-nodeID').val() || node.nodeID);
@@ -405,19 +400,15 @@
         updateItemSelection('propertyID', $('#node-input-propertyID').val() || node.propertyID);
         updateItemSelection('extensionID', $('#node-input-extensionID').val() || node.extensionID);
       }
-      if (lastDeviceID!=$('#node-input-deviceID').val()) { // update tree List if Device ID differs.
-        // updateItemSelection('treeList', $('#node-input-propertyID').val() || node.propertyID);
-      }
-      // lastDeviceID=$('#node-input-deviceID').val();
+      lastDeviceID=$('#node-input-deviceID').val();
 		});
 		$('#node-input-nodeID').change(function(ev) { // update property List if node changes
       updateItemSelection('propertyID', $('#node-input-propertyID').val() || node.propertyID);
       updateItemSelection('extensionID', $('#node-input-extensionID').val() || node.extensionID);
-      //lastNodeID=$('#node-input-nodeID').val();
+      lastNodeID=$('#node-input-nodeID').val();
     });
     $('#node-input-propertyID').change(function(ev) { // update property List if property selected
-      // updateItemSelection('treeList', $('#node-input-propertyID').val() || node.propertyID);
-      // lastPropertyID=$('#node-input-propertyID').val();
+      lastPropertyID=$('#node-input-propertyID').val();
     });
     $('#node-input-settable').on("click",function() { // re-update property list if $settable filter setting is changed
       updateItemSelection('propertyID', $('#node-input-propertyID').val() || node.propertyID);
