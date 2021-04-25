@@ -30,6 +30,8 @@ module.exports = function (RED) {
     this.infoTiming=config.infoTiming; // include Timing messages
     this.infoMqtt=config.infoMqtt; // include MQTT messages
     this.sendChangesOnly=config.sendChangesOnly; // include Timing messages
+    this.sendStateUpdates=config.sendStateUpdates; // emit changes on $state
+    this.blockAttributes=config.blockAttributes; // block homieAttribute messages
     this.blockTimeout= Number(config.blockTimeout) || 0; // don't send new messages until last message is confirmed
 
     if ((typeof config.settable)=="string")  this.settable=(config.settable=="true");
@@ -586,7 +588,10 @@ module.exports = function (RED) {
             }
             break;
           case 'homieAttribute':
-            if (node.extensionID!=='[any]') {
+            if (!node.sendStateUpdates && msg.hasOwnProperty('propertyId') && msg.propertyId!=='$state') {
+              if (done) done();
+              return;  
+            } else if (node.extensionID!=='[any]') {
               if (done) done();
               return;  
             }
@@ -600,12 +605,16 @@ module.exports = function (RED) {
           }
       } else {
         if (!Object.keys(node.selectedNodes).find(element => msg.topic.startsWith(element))) {
+          if (node.sendStateUpdates && msg.propertyId.startsWith('$state') &&
+              Object.keys(node.selectedNodes).find(element => element.startsWith(msg.baseId+"/"+msg.deviceId+"/"))) {
+            node.addToLog('info',` State ${msg.baseId}/${msg.deviceId}/${msg.propertyId}=${msg.payload}`);
+          } else {
+            if (done) done();
+            return;
+          }
+        } else if (node.blockAttributes && msg.typeId==='homieAttribute') {
           if (done) done();
           return;
-        }
-        if (msg.hasOwnProperty('propertyId') && msg.propertyId.startsWith('$')) {
-          if (done) done();
-          return;          
         }
       }
 

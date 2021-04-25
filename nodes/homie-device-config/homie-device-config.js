@@ -673,6 +673,8 @@ module.exports = function (RED) {
         'payload':payload,
         'baseId':baseId,
         'deviceId':deviceId,
+        'nodeId':nodeId || 'n/a',
+        'propertyId':propertyId || 'n/a',
         'mqtt':{
           'messageId' : packet.messageId,
           'qos' : packet.qos,
@@ -806,7 +808,6 @@ module.exports = function (RED) {
           node.addToLog("debug",`   out of order message detected ${msg.topic}=${payload}`);
           homieData._validated = false;
         } else {
-          msg.value=homieData._property.value;
           homieData._validated = true;
           homieData.predicted = false;
           homieData.value = homieData._property.value;
@@ -816,6 +817,7 @@ module.exports = function (RED) {
         }
         msg.property=homieData._property;
         msg.value=homieData._property.value;
+        msg.payload=homieData._property.payload;
         return success;
       }
 
@@ -844,7 +846,11 @@ module.exports = function (RED) {
             homieData[property]=node.formatProperty(payload, (def[property]) ? def[property].$datatype : def['*'].$datatype);
             homieData._missingProperties=validateNode(homieData,def);
             msg.typeId="homieAttribute";
+            
             if (!msg.hasOwnProperty('property')) msg.property = {};
+            msg.property.value=payload;
+            msg.property.valueBefore=homieData[property+'_before'];
+            homieData[property+'_before']=homieData[property];
             msg.property.$name =  (def[property]) ? def[property].$name : undefined;
             msg.property.$datatype = (def[property]) ? def[property].$datatype : undefined;
             msg.property.$format = (def[property]) ? def[property].$format : undefined;

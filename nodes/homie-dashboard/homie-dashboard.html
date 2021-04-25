@@ -18,6 +18,18 @@
     </div>
 
     <div class="form-row">
+      <label><i class="fa fa-ban"></i> predicted</label>
+      <input type="checkbox" id="node-input-uiPredictedDisable" style="display: inline-block; width: auto; vertical-align: top;">
+      <label for="node-input-uiPredictedDisable" style="width: 70%;">&nbsp;&nbsp;send <code>msg.enable=false</code> during predicted state</label>
+    </div>
+
+    <div class="form-row">
+      <label><i class="fa fa-ban"></i> predicted</label>
+      <input type="checkbox" id="node-input-uiStateDisable" style="display: inline-block; width: auto; vertical-align: top;">
+      <label for="node-input-uiStateDisable" style="width: 70%;">&nbsp;&nbsp;send <code>msg.enable</code> $state==ready</label>
+    </div>
+
+    <div class="form-row">
       <label for="node-input-uiNode"><i class="fa fa-tachometer"></i> Node</label>
       <select id="node-input-uiNode">
         <option value="none">none</option>
@@ -324,6 +336,8 @@ function configEditPrepareHomieDashboard(node) {
       labelName: {value: ''},
       uiBlockSet: {value: true},
       uiBlockPredicted: {value: true},
+      uiPredictedDisable: {value: false},
+      uiStateDisable: {value: false},
       uiPlaceName: {value: ''}, // placeholder Name;
       uiNode: {value: 'none'}, // type of UI Node
       uiControlDropdown: {value: true}, // control dropdown via ui_control

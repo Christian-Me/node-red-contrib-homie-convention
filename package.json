@@ -4,10 +4,10 @@
   "description": "Node-RED nodes for MQTT communication according to the MQTT HOMIE convention",
   "dependencies": {
     "internal-ip": "^1.1.0",
+    "loadavg-windows": "^1.1.1",
+    "macaddress": "^0.5.1",
     "mqtt": "^1.6.3",
-    "os": "0.1.1",
-    "macaddress": "^0.5.0",
-    "loadavg-windows": "^1.1.1"
+    "os": "0.1.1"
   },
   "repository": {
     "type": "git",

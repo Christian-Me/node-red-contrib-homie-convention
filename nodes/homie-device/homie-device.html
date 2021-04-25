@@ -143,6 +143,16 @@
           <label for="node-input-sendChangesOnly" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> emit <b>changed values</b> only</label>
         </div>
         <div class="form-row">
+          <label>&nbsp</label>
+          <input type="checkbox" id="node-input-sendStateUpdates" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-sendStateUpdates" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> emit <b>$state</b> updates</label>
+        </div>
+        <div class="form-row">
+          <label>&nbsp</label>
+          <input type="checkbox" id="node-input-blockAttributes" style="display: inline-block; width: auto; vertical-align: top;">
+          <label for="node-input-blockAttributes" style="width: 70%;">&nbsp;&nbsp;<i class="fa fa-clock"></i> block <b>homie attribute</b> updates</label>
+        </div>
+        <div class="form-row">
           <label for="node-input-blockTimeout"><i class="fa fa-clock-o"></i> Block</label>
           <input type="number" min="0" max="10000" step="100" id="node-input-blockTimeout" style="width: 15%;">
           &nbsp;&nbsp;ms or last message confirmed
@@ -444,7 +454,9 @@
       labelPayload: {value: true},
       labelName: {value: ''},
       settable: {value: false},
-      filterTree: {value: false}
+      filterTree: {value: false},
+      sendStateUpdates: {value: true},
+      blockAttributes: {value: true}
     },
     inputs: 1,
     outputs: 2,
@@ -591,6 +603,7 @@
         <li><b>msg.property :</b> Select to receive attributes information.</li>
         <li><b>msg.mqtt :</b> Select to receive additional mqtt information.</li>
         <li><b>changed values only :</b> Select to receive data only if it differs from previous.</li>
+        <li><b>$state updates :</b> emit am message on updates on $state.</li>
         <li><b>block new values until confirmed :</b> >0ms to block sending new messages until the last message is confirmed or timeout reached. 
             Latest update is stored and will be sent after confirmation or timeout.
             This feature is useful to limit sending frequent updates synced to device capabilities and not filling the queue on the broker.</li>

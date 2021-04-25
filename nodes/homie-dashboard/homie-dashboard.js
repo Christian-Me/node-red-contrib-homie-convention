@@ -11,6 +11,8 @@ module.exports = function (RED) {
     this.addLabel=config.addLabel; // include msg.label
     this.uiBlockSet=config.uiBlockSet; // block set messages
     this.uiBlockPredicted=config.uiBlockPredicted; // block set messages
+    this.uiPredictedDisable=config.uiPredictedDisable; // send msg.disable if predicted message arrives
+    this.uiStateDisable=config.uiStateDisable;  // send msg.disable if $sate!=ready arrives
     this.uiPlaceName = config.uiPlaceName; // Placeholder Text for uiDropdown
     this.uiControlDropdown=config.uiControlDropdown; // convert $format to msg.options for uiDropdown
     this.uiNode=config.uiNode; // type of node connected to
@@ -153,7 +155,7 @@ module.exports = function (RED) {
             switch(property.$datatype){
               case 'boolean':
               case 'enum':
-                var enumValues = property.$format.split(',');
+                var enumValues = (property.hasOwnProperty('$format') && property.$format!==undefined) ? property.$format.split(',') : [];
                 if ((typeof msgOut.payload=="boolean" && !msgOut.payload) || msgOut.payload==enumValues[0]) { // OFF state
                   if (msgOut.predicted && node.uiUseColorPredictedOff) msgOut.ui_control.bgcolor=node.uiColorPredictedOff;
                     else msgOut.ui_control.bgcolor=node.uiColorOFF;
@@ -188,11 +190,6 @@ module.exports = function (RED) {
               msgOut.ui_control.offcolor=node.uiSwitchColorPredictedOFF;
               msgOut.ui_control.onicon=node.uiSwitchIconPredictedON;
               msgOut.ui_control.officon=node.uiSwitchIconPredictedOFF;
-            } else { // exit predicted state
-              msgOut.ui_control.oncolor="";
-              msgOut.ui_control.offcolor="";
-              msgOut.ui_control.onicon="";
-              msgOut.ui_control.officon="";
             }
           } 
           break;
@@ -356,13 +353,31 @@ module.exports = function (RED) {
     this.on('input', function(msg, send, done) {
       send = send || function() { node.send.apply(node,arguments) }
       node.addToLog("trace","Message arrived! topic="+msg.topic+" payload="+msg.payload);
-      if ((node.uiBlockSet && msg.setFlag===true) || (node.uiBlockPredicted && msg.predicted===true)) {
-        node.addToLog("trace",`Message blocked!`);
-      } else {
-        if (node.addUiControl(msg)) {
-          node.msgAddLabel(msg);
-          send(msg);
+      var msgOut = {topic : msg.topic};
+      if (msg.typeId==='homieAttribute') {
+        if (node.uiStateDisable && msg.propertyId==='$state') {
+          msgOut.enabled = (msg.payload==='ready') ? true : false 
+          node.msgAddLabel(msgOut)
+          send(msgOut);
+          if (done) done();
+          return;
         }
+      }
+      if (node.uiBlockSet && msg.setFlag===true) {
+        node.addToLog("trace",`Message blocked!`);
+        if (done) done();
+        return;
+      } 
+      if (node.uiBlockPredicted && msg.predicted===true) {
+        msgOut.enabled = (msg.payload==='ready') ? true : false 
+        send(msgOut);
+        if (done) done();
+        return;       
+      } 
+      if (node.uiPredictedDisable) msg.enabled = (msg.predicted) ? false : true;
+      if (node.addUiControl(msg)) {
+        node.msgAddLabel(msg);
+        send(msg);
       }
       if (done) done();
     });
