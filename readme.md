@@ -2,6 +2,14 @@
 
 ![logo](./nodes/homie-device/icons/mqtt_homie.jpg)
 
+# complete reworked Version is available as Beta
+
+The nodes are currently completely reworked. If someone is curious and adventurous you can install it directly from the github repro
+
+```
+npm install Christian-Me/node-red-contrib-homie-convention#develop
+```
+
 # introduction
 
 >The Homie convention defines a standardized way of how IoT devices and services announce themselves and their data on the MQTT broker.
