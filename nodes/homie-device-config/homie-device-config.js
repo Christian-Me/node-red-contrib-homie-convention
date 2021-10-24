@@ -1,4 +1,4 @@
-var ip = require('internal-ip');
+// var ip = require('internal-ip');
 var macaddress = require('macaddress');
 var os = require('os');
 require('loadavg-windows');
@@ -391,7 +391,8 @@ module.exports = function (RED) {
       macaddress.one(function (err, mac) {
         node.client.publish(node.baseTopic + '/$mac', mac, { qos: 2, retain: true });
       });
-      node.client.publish(node.baseTopic + '/$localip', ip.v4(), { qos: 2, retain: true });
+      //node.client.publish(node.baseTopic + '/$localip', ip.v4(), { qos: 2, retain: true });
+      node.client.publish(node.baseTopic + '/$localip', '0.0.0.0', { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$extensions','org.homie.legacy-stats:0.1.1:[4.x],org.homie.legacy-firmware:0.1.1:[4.x]', { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$stats/interval', "60", { qos: 2, retain: true });
       node.client.publish(node.baseTopic + '/$stats/uptime', os.uptime().toString(), { qos: 2, retain: true });
