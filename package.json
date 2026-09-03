@@ -4,7 +4,7 @@
   "description": "Node-RED nodes for MQTT communication according to the MQTT HOMIE convention",
   "dependencies": {
     "internal-ip": "^1.1.0",
-    "mqtt": "^1.6.3",
+    "mqtt": "^5.15.2",
     "os": "0.1.1"
   },
   "repository": {
